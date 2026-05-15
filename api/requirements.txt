@@ -1,0 +1,14 @@
+# Dépendances Python — API Flask NOC Tunisie Télécom
+# Installer avec : pip install -r requirements.txt
+
+flask==3.0.3              # Framework web Python
+flask-cors==4.0.1         # CORS pour le frontend React
+psycopg2-binary==2.9.9    # Connexion PostgreSQL
+pandas==2.2.2             # Manipulation des données télécom
+scikit-learn==1.5.0       # Isolation Forest (détection d'anomalies)
+gunicorn==22.0.0          # Serveur de production (Docker)
+PyJWT==2.8.0              # Authentification JWT
+werkzeug==3.0.3           # Sécurité (hash des mots de passe)
+reportlab==4.2.0          # Génération de rapports PDF
+openpyxl==3.1.5           # Export Excel (.xlsx)
+requests==2.32.3          # Client HTTP (configuration GeoServer)

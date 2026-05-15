@@ -1,0 +1,248 @@
+/* ── MAP PAGE STYLES ── */
+
+/* Top bar */
+.map-topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  z-index: 200;
+  box-shadow: var(--shadow-sm);
+}
+
+.map-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+
+.map-topbar-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.map-topbar-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Filters */
+.map-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.map-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.map-filter-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.map-filter-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.map-filter-count {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+}
+
+/* Legend */
+.map-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.legend-dot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.legend-dot-circle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+/* Stats overlay */
+.map-stats-overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-stat-chip {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  min-width: 110px;
+}
+
+.map-stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.map-stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Popup */
+.map-popup {
+  font-family: "Inter", sans-serif;
+  min-width: 200px;
+}
+
+.map-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.map-popup-header strong {
+  font-size: 0.9rem;
+  color: #0f172a;
+}
+
+.map-popup-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+.map-popup-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.metric-row span {
+  color: #64748b;
+}
+
+.metric-row strong {
+  font-weight: 600;
+}
+
+.map-popup-time {
+  margin-top: 10px;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+}
+
+/* Voir historique button inside popup */
+.map-popup-history-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+  border: 1.5px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: inherit;
+  text-align: center;
+}
+
+.map-popup-history-btn:hover {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
+}
+
+/* Custom marker — no default icon */
+.custom-noc-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.noc-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Pulsing for critique (red) */
+.noc-marker.marker-pulse-red {
+  animation: pulseRed 1.5s infinite;
+}
+
+@keyframes pulseRed {
+  0%, 100% { filter: drop-shadow(0 0 0px #dc2626); }
+  50%       { filter: drop-shadow(0 0 6px #dc2626); }
+}
+
+/* Pulsing for alerte (orange) */
+.noc-marker.marker-pulse-orange {
+  animation: pulseOrange 2s infinite;
+}
+
+@keyframes pulseOrange {
+  0%, 100% { filter: drop-shadow(0 0 0px #d97706); }
+  50%       { filter: drop-shadow(0 0 5px #d97706); }
+}

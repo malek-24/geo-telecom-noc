@@ -1,0 +1,183 @@
+/* ═══════════════════════════ ModerationStyles.css ═══════════════════════════ */
+
+/* ── Filter tabs ── */
+.mod-filter-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px;
+  width: fit-content;
+  box-shadow: var(--shadow-sm);
+}
+
+.mod-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.13s;
+  font-family: inherit;
+}
+
+.mod-tab:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.mod-tab.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 1px 5px rgba(79, 70, 229, 0.25);
+}
+
+.mod-tab-count {
+  background: rgba(255,255,255,0.25);
+  border-radius: 10px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+}
+
+.mod-tab:not(.active) .mod-tab-count {
+  background: var(--bg);
+  color: var(--text-light);
+}
+
+/* ── Incident list item ── */
+.mod-incident {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.mod-incident:last-child { border-bottom: none; }
+.mod-incident.resolved   { opacity: 0.6; }
+
+.mod-incident-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background 0.13s;
+}
+
+.mod-incident-row:hover {
+  background: var(--surface-hover);
+}
+
+.mod-incident-bar {
+  width: 3px;
+  height: 38px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.mod-incident-bar.critical { background: var(--danger); }
+.mod-incident-bar.warning  { background: var(--warning); }
+.mod-incident-bar.info     { background: var(--info); }
+
+.mod-incident-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mod-incident-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mod-incident-meta {
+  font-size: 0.77rem;
+  color: var(--text-muted);
+}
+
+/* ── Expanded detail panel ── */
+.mod-incident-detail {
+  padding: 18px 22px 22px 36px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.mod-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.mod-detail-item label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.mod-detail-item p {
+  font-size: 0.875rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ── Metric chips ── */
+.mod-metrics-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.mod-metric-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 76px;
+  transition: border-color 0.13s, box-shadow 0.13s;
+}
+
+.mod-metric-chip:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.mod-metric-chip span {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.mod-metric-chip strong {
+  font-size: 0.9rem;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ── Comments section ── */
+.mod-comments-section {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}

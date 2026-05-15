@@ -1,0 +1,384 @@
+/* ══════════════════════════════════════════════════════════
+   LOGIN PAGE — PFE GEO-TÉLÉCOM
+   Design: centré, fond dégradé bleu clair, carte blanche
+   ══════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.login-bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 40%, #ede9fe 100%);
+  position: relative;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, sans-serif;
+  padding: 20px;
+}
+
+/* ── Background decorative circles ── */
+.login-circle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: floatCircle 12s infinite ease-in-out alternate;
+}
+
+.login-circle-1 {
+  width: 480px;
+  height: 480px;
+  background: rgba(37, 99, 235, 0.08);
+  top: -160px;
+  left: -160px;
+}
+
+.login-circle-2 {
+  width: 360px;
+  height: 360px;
+  background: rgba(124, 58, 237, 0.07);
+  bottom: -120px;
+  right: -120px;
+  animation-delay: -6s;
+}
+
+.login-circle-3 {
+  width: 200px;
+  height: 200px;
+  background: rgba(14, 165, 233, 0.06);
+  top: 50%;
+  left: 60%;
+  animation-delay: -3s;
+}
+
+@keyframes floatCircle {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(20px, 30px) scale(1.06); }
+}
+
+/* ── Wrapper — centered column ── */
+.login-card-wrap {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 440px;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.55s ease-out, transform 0.55s ease-out;
+}
+
+.login-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── PFE Header (above card) ── */
+.login-pfe-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-pfe-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  background: #eff6ff;
+  border: 2px solid rgba(37, 99, 235, 0.15);
+  border-radius: 18px;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
+  margin-bottom: 14px;
+}
+
+.login-pfe-badge {
+  display: inline-block;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 3px 12px;
+  border-radius: 20px;
+  margin-bottom: 10px;
+}
+
+.login-pfe-names {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.01em;
+}
+
+.login-pfe-subtitle {
+  font-size: 0.82rem;
+  color: #475569;
+  margin: 0;
+  line-height: 1.55;
+  max-width: 380px;
+}
+
+/* ── Main card ── */
+.login-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.05),
+    0 10px 40px rgba(37, 99, 235, 0.1),
+    0 20px 60px rgba(0, 0, 0, 0.07);
+  padding: 36px 36px 28px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.login-card-head {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-card-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+}
+
+.login-card-sub {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ── Form ── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.login-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.login-input-icon {
+  position: absolute;
+  left: 13px;
+  color: #94a3b8;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.login-input {
+  width: 100%;
+  padding: 11px 14px 11px 40px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: all 0.2s;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.login-input::placeholder {
+  color: #cbd5e1;
+}
+
+.login-input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.login-eye-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.login-eye-btn:hover {
+  color: #475569;
+  background: #f1f5f9;
+}
+
+/* ── Error ── */
+.login-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fef2f2;
+  color: #dc2626;
+  padding: 10px 13px;
+  border-radius: 9px;
+  font-size: 0.83rem;
+  border: 1px solid #fecaca;
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-5px); }
+  75%       { transform: translateX(5px); }
+}
+
+/* ── Submit button ── */
+.login-submit-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
+  border: none;
+  padding: 13px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+}
+
+.login-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.32);
+}
+
+.login-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.login-spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Demo accounts ── */
+.login-demo-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.login-demo-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.07em;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.login-demo-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-demo-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1.5px solid #e8edf5;
+  padding: 9px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: left;
+  font-family: inherit;
+}
+
+.login-demo-chip:hover {
+  background: #fff;
+  border-color: var(--chip-color, #2563eb);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.login-demo-role {
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.login-demo-creds {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-family: 'Courier New', monospace;
+}
+
+.login-demo-hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-align: center;
+  margin: 10px 0 0;
+}
+
+/* ── Footer ── */
+.login-footer {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .login-card {
+    padding: 28px 22px 22px;
+  }
+
+  .login-pfe-names {
+    font-size: 1.2rem;
+  }
+
+  .login-pfe-subtitle {
+    font-size: 0.78rem;
+  }
+}

@@ -1,0 +1,16 @@
+.git
+.gitignore
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.env.local
+.DS_Store
+**/*.log
+**/node_modules
+**/build
+.venv
+venv
+docs
+*.md
+geoserver_caps.xml

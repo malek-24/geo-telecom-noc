@@ -1,0 +1,124 @@
+id,nom,zone,type,latitude,longitude,temperature,cpu
+1,TT_Antenne_001,Mahdia_Ville,mobile,35.498589,11.048508,39.69,39.07
+2,TT_Antenne_002,Mahdia_Ville,mobile,35.516828,11.047661,26.91,36.09
+3,TT_Antenne_003,Mahdia_Ville,mobile,35.505617,11.046862,38.23,68.3
+4,TT_Antenne_004,Mahdia_Ville,fixe,35.506977,11.0474,66.89,52.12
+5,TT_Antenne_005,Mahdia_Ville,fixe,35.513909,11.050647,47.8,53.33
+6,TT_Antenne_006,Mahdia_Ville,mobile,35.497565,11.054227,57.17,93.25
+7,TT_Antenne_007,Rejiche,mobile,35.463178,11.048482,59.64,75.8
+8,TT_Antenne_008,Rejiche,mobile,35.479012,11.043373,84.11,85.6
+9,TT_Antenne_009,Rejiche,mobile,35.477412,11.033862,63.14,53.71
+10,TT_Antenne_010,Rejiche,mobile,35.465385,11.046966,67.11,74.43
+11,TT_Antenne_011,Rejiche,fixe,35.481245,11.045932,34.8,54.66
+12,TT_Antenne_012,ksour essef,fixe,35.425378,10.97925,66.08,84.79
+13,TT_Antenne_013,ksour essef,fixe,35.415361,10.971746,73.3,56.08
+14,TT_Antenne_014,ksour essef,mobile,35.425924,10.985266,37.76,62.45
+15,TT_Antenne_015,ksour essef,fixe,35.422552,10.97243,40.89,46.03
+16,TT_Antenne_016,ksour essef,mobile,35.405981,10.976745,78.87,55.96
+17,TT_Antenne_017,salakta,mobile,35.395586,11.04025,30.45,33.06
+18,TT_Antenne_018,salakta,mobile,35.40174,11.034198,60.78,55.01
+19,TT_Antenne_019,salakta,mobile,35.384561,11.021196,83.26,85.95
+20,TT_Antenne_020,salakta,mobile,35.404878,11.027858,71.12,52.11
+21,TT_Antenne_021,salakta,fixe,35.390916,11.034435,82.23,86.93
+22,TT_Antenne_022,sidi alouane,fixe,35.36612,10.941435,55.46,36.92
+23,TT_Antenne_023,sidi alouane,fixe,35.358087,10.922053,34.17,79.56
+24,TT_Antenne_024,sidi alouane,fixe,35.355115,10.927998,60.94,61.76
+25,TT_Antenne_025,sidi alouane,mobile,35.37422,10.937117,39.37,45.66
+26,TT_Antenne_026,eljam,mobile,35.285681,10.708154,73.96,93.57
+27,TT_Antenne_027,eljam,mobile,35.284747,10.709488,81.81,40.73
+28,TT_Antenne_028,eljam,fixe,35.280982,10.709065,80.73,79.09
+29,TT_Antenne_029,eljam,mobile,35.287625,10.699976,84.71,72.24
+30,TT_Antenne_030,eljam,fixe,35.282201,10.715015,39.87,34.16
+31,TT_Antenne_031,gouessem,fixe,35.224743,10.464428,25.43,76.01
+32,TT_Antenne_032,gouessem,fixe,35.220349,10.465462,76.58,34.61
+33,TT_Antenne_033,gouessem,fixe,35.214872,10.474554,57.35,77.02
+34,TT_Antenne_034,menzel hachad,fixe,35.194121,10.2796,72.08,82.49
+35,TT_Antenne_035,menzel hachad,mobile,35.188604,10.293626,46.26,56.72
+36,TT_Antenne_036,menzel hachad,fixe,35.190372,10.281968,28.64,77.33
+37,TT_Antenne_037,chorbane,fixe,35.280264,10.381118,36.41,59.16
+38,TT_Antenne_038,chorbane,fixe,35.27025,10.392142,77.47,34.9
+39,TT_Antenne_039,chorbane,fixe,35.282532,10.376124,28.04,94.95
+40,TT_Antenne_040,chorbane,fixe,35.284867,10.376558,34.98,61.57
+41,TT_Antenne_041,essouassi,fixe,35.333202,10.552501,34.88,30.14
+42,TT_Antenne_042,essouassi,mobile,35.320876,10.55133,42.11,75.28
+43,TT_Antenne_043,essouassi,mobile,35.329499,10.530805,34.29,49.29
+44,TT_Antenne_044,essouassi,fixe,35.341794,10.54085,69.88,33.72
+45,TT_Antenne_045,ouled chamekh,fixe,35.464946,10.315708,28.41,63.01
+46,TT_Antenne_046,ouled chamekh,fixe,35.478056,10.315515,65.51,45.29
+47,TT_Antenne_047,ouled chamekh,fixe,35.483415,10.329829,59.74,32.58
+48,TT_Antenne_048,boumerdes,mobile,35.448019,10.726672,81.08,43.28
+49,TT_Antenne_049,boumerdes,mobile,35.436219,10.71274,32.85,71.96
+50,TT_Antenne_050,boumerdes,fixe,35.425347,10.724485,25.56,70.38
+51,TT_Antenne_051,boumerdes,fixe,35.431402,10.718243,55.35,38.61
+52,TT_Antenne_052,ouled salah,fixe,35.418023,10.917546,47.17,40.25
+53,TT_Antenne_053,ouled salah,fixe,35.427928,10.901794,65.07,66.05
+54,TT_Antenne_054,ouled salah,fixe,35.428537,10.909012,40.87,87.83
+55,TT_Antenne_055,zorda,mobile,35.295633,10.915312,61.29,76.64
+56,TT_Antenne_056,zorda,mobile,35.299267,10.933886,55.32,46.32
+57,TT_Antenne_057,zorda,mobile,35.301556,10.919383,74.76,32.87
+58,TT_Antenne_058,melloulech,mobile,35.172262,11.033454,34.69,58.72
+59,TT_Antenne_059,melloulech,fixe,35.173007,11.016535,29.51,87.4
+60,TT_Antenne_060,melloulech,mobile,35.184876,11.02088,59.95,39.63
+61,TT_Antenne_061,ghedhabna,fixe,35.294287,11.03123,78.94,43.65
+62,TT_Antenne_062,ghedhabna,mobile,35.288021,11.032699,83.43,78.72
+63,TT_Antenne_063,ghedhabna,fixe,35.295532,11.048208,83.57,82.7
+64,TT_Antenne_064,zalba est,mobile,35.244657,10.880704,71.94,56.76
+65,TT_Antenne_065,zalba est,fixe,35.234215,10.874491,41.01,81.18
+66,TT_Antenne_066,zalba est,mobile,35.249963,10.893043,38.35,83.08
+67,TT_Antenne_067,oued beja nord,fixe,35.354273,10.888223,38.38,72.9
+68,TT_Antenne_068,oued beja nord,fixe,35.355941,10.891234,83.01,48.14
+69,TT_Antenne_069,oued beja nord,mobile,35.35686,10.878436,81.35,37.5
+70,TT_Antenne_070,ouedglet,mobile,35.368776,10.825537,27.3,68.78
+71,TT_Antenne_071,ouedglet,mobile,35.35404,10.837147,61.37,63.24
+72,TT_Antenne_072,ouedglet,mobile,35.352748,10.834257,27.66,58.34
+73,TT_Antenne_073,riadh bou helal,fixe,35.256674,10.598449,46.85,34.55
+74,TT_Antenne_074,riadh bou helal,mobile,35.264276,10.592098,64.8,38.1
+75,TT_Antenne_075,riadh bou helal,mobile,35.27751,10.593821,44.57,75.32
+76,TT_Antenne_076,sidi naceur,mobile,35.311431,10.606306,65.64,88.68
+77,TT_Antenne_077,sidi naceur,fixe,35.31229,10.603045,43.23,43.66
+78,TT_Antenne_078,sidi naceur,mobile,35.321492,10.598094,52.9,58.74
+79,TT_Antenne_079,sidi zaid,fixe,35.368324,10.510013,64.53,48.45
+80,TT_Antenne_080,sidi zaid,fixe,35.360194,10.490342,74.11,78.82
+81,TT_Antenne_081,sidi zaid,fixe,35.362117,10.492634,33.84,33.0
+82,TT_Antenne_082,el kesasba,fixe,35.38716,10.63187,52.32,87.6
+83,TT_Antenne_083,el kesasba,mobile,35.365425,10.627556,54.66,45.86
+84,TT_Antenne_084,el kesasba,fixe,35.372599,10.627924,71.71,44.22
+85,TT_Antenne_085,bouhlale,mobile,35.44592,10.609917,28.01,46.2
+86,TT_Antenne_086,bouhlale,mobile,35.447885,10.612719,65.05,94.21
+87,TT_Antenne_087,bouhlale,mobile,35.43107,10.613527,61.76,76.75
+88,TT_Antenne_088,bouhlale ali nord,mobile,35.411441,10.651623,78.83,78.34
+89,TT_Antenne_089,bouhlale ali nord,fixe,35.415484,10.653367,75.39,48.03
+90,TT_Antenne_090,bouhlale ali nord,fixe,35.425792,10.641797,41.48,35.04
+91,TT_Antenne_091,kerker,mobile,35.472057,10.655511,78.58,35.24
+92,TT_Antenne_092,kerker,fixe,35.479612,10.654809,67.39,34.17
+93,TT_Antenne_093,kerker,mobile,35.465002,10.652902,28.74,84.14
+94,TT_Antenne_094,kerker 2,fixe,35.451621,10.670811,76.4,79.76
+95,TT_Antenne_095,kerker 2,mobile,35.456533,10.667175,42.92,55.35
+96,TT_Antenne_096,kerker 2,fixe,35.470786,10.655073,54.29,47.74
+97,TT_Antenne_097,azarata,mobile,35.420378,10.68687,68.45,84.63
+98,TT_Antenne_098,azarata,fixe,35.441732,10.679506,79.42,68.47
+99,TT_Antenne_099,azarata,mobile,35.426369,10.680033,33.14,60.01
+100,TT_Antenne_100,alrawadi,fixe,35.415112,10.705979,52.28,51.94
+101,TT_Antenne_101,alrawadi,mobile,35.41239,10.696972,40.14,35.32
+102,TT_Antenne_102,alrawadi,mobile,35.41666,10.704305,38.45,34.46
+103,TT_Antenne_103,al chawaria,fixe,35.436279,10.765273,81.98,42.96
+104,TT_Antenne_104,al chawaria,fixe,35.437604,10.767979,53.41,37.44
+105,TT_Antenne_105,al chawaria,mobile,35.439675,10.763705,71.01,40.91
+106,TT_Antenne_106,al ababsa,fixe,35.377565,10.762466,71.67,40.64
+107,TT_Antenne_107,al ababsa,mobile,35.382883,10.780204,59.55,89.02
+108,TT_Antenne_108,al ababsa,fixe,35.377653,10.779311,29.56,74.89
+109,TT_Antenne_109,sidi assaker,mobile,35.403002,10.886859,76.02,69.03
+110,TT_Antenne_110,sidi assaker,fixe,35.417726,10.901255,45.83,57.84
+111,TT_Antenne_111,sidi assaker,mobile,35.400779,10.899635,25.76,57.3
+112,TT_Antenne_112,jouaouda,mobile,35.466026,10.880615,63.14,83.87
+113,TT_Antenne_113,jouaouda,mobile,35.473348,10.870351,61.95,89.78
+114,TT_Antenne_114,jouaouda,mobile,35.477576,10.869903,44.34,45.96
+115,TT_Antenne_115,es saad,mobile,35.489059,10.93449,39.63,60.21
+116,TT_Antenne_116,es saad,fixe,35.473627,10.931874,54.66,51.13
+117,TT_Antenne_117,es saad,mobile,35.471629,10.938735,45.42,87.22
+118,TT_Antenne_118,chiba,fixe,35.516353,10.931641,56.0,42.42
+119,TT_Antenne_119,chiba,fixe,35.519532,10.949778,66.44,71.98
+120,TT_Antenne_120,chiba,fixe,35.506677,10.940711,42.65,56.29
+121,TT_Antenne_121,el bradaa,mobile,35.345486,10.998545,53.4,64.51
+122,TT_Antenne_122,el bradaa,mobile,35.334235,10.992442,46.11,59.49
+123,TT_Antenne_123,el bradaa,fixe,35.342082,10.994854,43.93,78.29
