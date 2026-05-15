@@ -229,7 +229,7 @@ export default function Dashboard() {
                       <span>{inc.antenne} — {inc.zone}</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Clock size={11} />
-                        {new Date(inc.date_creation).toLocaleTimeString('fr-FR')}
+                        {(() => { const s = inc.date_creation; const d = new Date(/[Z+]/.test(s) ? s : s.replace(' ','T')+'Z'); return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }); })()}
                       </span>
                     </div>
                   </div>

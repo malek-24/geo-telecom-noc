@@ -25,16 +25,38 @@ import { useAuth } from '../auth/AuthContext';
 import '../styles/HistoryStyles.css';
 
 /* ─── helpers ──────────────────────────────────────────── */
-const val  = (v, u = '') => v !== undefined && v !== null ? `${Number(v).toFixed(1)}${u}` : '—';
-const fmt  = (iso) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleString('fr-FR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+const val = (v, u = '') => v !== undefined && v !== null ? `${Number(v).toFixed(1)}${u}` : '—';
+
+/**
+ * parseUtc — Force l'interprétation en UTC d'une date stockée sans fuseau horaire.
+ * PostgreSQL stocke les timestamps en UTC sans le suffixe 'Z'.
+ * Sans ce suffixe, JavaScript les traite comme heure locale → décalage d'1h.
+ */
+const parseUtc = (iso) => {
+  if (!iso) return null;
+  // Si la string contient déjà un offset (+00, Z, etc.), on ne touche pas
+  if (/[Z+]/.test(iso)) return new Date(iso);
+  // Sinon, on force l'interprétation UTC en ajoutant 'Z'
+  return new Date(iso.replace(' ', 'T') + 'Z');
 };
+
+const fmt = (iso) => {
+  const d = parseUtc(iso);
+  if (!d) return '—';
+  return d.toLocaleString('fr-FR', {
+    hour: '2-digit', minute: '2-digit',
+    day: '2-digit',  month: '2-digit',
+    timeZone: 'Africa/Tunis'
+  });
+};
+
 const fmtShort = (iso) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const d = parseUtc(iso);
+  if (!d) return '';
+  return d.toLocaleTimeString('fr-FR', {
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'Africa/Tunis'
+  });
 };
 
 const STATUS_STYLE = {

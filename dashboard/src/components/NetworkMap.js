@@ -100,13 +100,15 @@ function calculerLongueurTotaleKm(segments) {
 // =============================================================
 function AjusterVue({ antennes }) {
   const carte = useMap();
+  const [zoomFait, setZoomFait] = useState(false);
 
   useEffect(() => {
-    if (antennes.length > 0) {
+    if (antennes.length > 0 && !zoomFait) {
       const coordonnees = antennes.map((a) => [a.latitude, a.longitude]);
       carte.fitBounds(coordonnees, { padding: [30, 30] });
+      setZoomFait(true);
     }
-  }, [antennes, carte]);
+  }, [antennes, carte, zoomFait]);
 
   return null; // Ce composant ne rend rien visuellement
 }

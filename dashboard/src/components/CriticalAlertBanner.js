@@ -10,7 +10,7 @@ import { API_BASE_URL } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-const POLL_INTERVAL = 45000; // 45 secondes
+const POLL_INTERVAL = 10000; // 10 secondes (temps réel)
 
 const ROLE_COLORS = {
   critique: { bg: '#fef2f2', border: '#dc2626', text: '#dc2626', badgeBg: '#dc2626' },
@@ -130,7 +130,7 @@ export default function CriticalAlertBanner() {
                       ALERTE CRITIQUE — IA
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                      Isolation Forest • {new Date(alerte.date_creation).toLocaleTimeString('fr-FR')}
+                      Isolation Forest • {(() => { const s = alerte.date_creation; const d = new Date(/[Z+]/.test(s) ? s : s.replace(' ','T')+'Z'); return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }); })()}
                     </div>
                   </div>
                 </div>
