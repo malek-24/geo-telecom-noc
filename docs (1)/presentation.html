@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>GEO-TÉLÉCOM NOC — Soutenance PFE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#fff;overflow:hidden;height:100vh}
+.slide{display:none;height:100vh;padding:60px;position:relative;animation:fadeIn .5s ease}
+.slide.active{display:flex;flex-direction:column;justify-content:center}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+h1{font-size:2.8rem;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:1rem}
+h2{font-size:2rem;color:#60a5fa;margin-bottom:1.5rem}
+h3{font-size:1.3rem;color:#94a3b8;margin-bottom:1rem}
+p{color:#cbd5e1;font-size:1.1rem;line-height:1.7;margin-bottom:1rem}
+.badge{display:inline-block;background:#1e3a5f;color:#60a5fa;border:1px solid #60a5fa;border-radius:20px;padding:4px 14px;font-size:.85rem;margin:4px}
+table{width:100%;border-collapse:collapse;margin:1rem 0}
+th{background:#1e293b;color:#60a5fa;padding:12px;text-align:left;font-size:.95rem}
+td{padding:10px 12px;border-bottom:1px solid #1e293b;color:#cbd5e1;font-size:.9rem}
+tr:hover{background:#1e293b55}
+.grid{display:grid;gap:1.2rem}
+.grid-2{grid-template-columns:1fr 1fr}
+.grid-3{grid-template-columns:1fr 1fr 1fr}
+.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:1.2rem}
+.card h4{color:#60a5fa;margin-bottom:.5rem;font-size:1rem}
+.card p{font-size:.9rem;margin:0}
+.highlight{color:#f59e0b;font-weight:700}
+.good{color:#4ade80}
+.warn{color:#fb923c}
+.danger{color:#f87171}
+.nav{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:100}
+.nav button{background:#1e3a5f;color:#60a5fa;border:1px solid #60a5fa;padding:10px 28px;border-radius:25px;cursor:pointer;font-size:.95rem;transition:all .2s}
+.nav button:hover{background:#60a5fa;color:#0f172a}
+.counter{position:fixed;top:20px;right:30px;color:#475569;font-size:.85rem}
+.logo{position:fixed;top:20px;left:30px;font-size:1rem;color:#60a5fa;font-weight:700}
+.arch{background:#0d1b2e;border:1px solid #1e3a5f;border-radius:8px;padding:1.2rem;font-family:monospace;font-size:.9rem;line-height:1.8;color:#7dd3fc}
+.kpi{text-align:center;background:linear-gradient(135deg,#1e3a5f,#1e293b);border:1px solid #3b82f6;border-radius:12px;padding:1.5rem}
+.kpi .num{font-size:2.5rem;font-weight:800;color:#60a5fa}
+.kpi .lbl{color:#94a3b8;font-size:.9rem;margin-top:.3rem}
+.sprint{display:flex;gap:1rem}
+.sprint-item{flex:1;background:#1e293b;border-left:3px solid #60a5fa;border-radius:8px;padding:1rem}
+.sprint-item h4{color:#60a5fa;margin-bottom:.5rem;font-size:.9rem}
+.sprint-item p{font-size:.8rem;margin:0}
+ul{list-style:none;padding:0}
+ul li{padding:6px 0;padding-left:1.5rem;position:relative;color:#cbd5e1;font-size:1rem}
+ul li::before{content:"▶";position:absolute;left:0;color:#60a5fa;font-size:.7rem;top:9px}
+.pipe{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.pipe-box{background:#1e3a5f;border:1px solid #3b82f6;border-radius:8px;padding:.6rem 1.2rem;font-size:.9rem;text-align:center}
+.pipe-arrow{color:#60a5fa;font-size:1.2rem}
+.title-slide{background:radial-gradient(ellipse at top left,#1e3a5f 0%,#0f172a 60%)}
+.logos{display:flex;gap:2rem;margin-bottom:2rem;opacity:.7}
+.question-slide{background:radial-gradient(ellipse at center,#1a0a2e 0%,#0f172a 70%);text-align:center;justify-content:center;align-items:center}
+.big-question{font-size:2.6rem;font-weight:800;color:#fff;line-height:1.5;max-width:900px;margin:0 auto 2.5rem}
+.big-question span{background:linear-gradient(135deg,#f59e0b,#ef4444);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.question-sub{font-size:1.15rem;color:#64748b;max-width:700px;margin:0 auto 2rem}
+.pulse{animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.reveal-answer{background:linear-gradient(135deg,#1e3a5f,#1e293b);border:1px solid #3b82f6;border-radius:16px;padding:1.2rem 2.5rem;margin:0 auto;max-width:750px}
+.reveal-answer p{color:#60a5fa;font-size:1.1rem;margin:0}
+</style>
+</head>
+<body>
+
+<!-- SLIDE 0: QUESTION D'ACCROCHE -->
+<div class="slide active question-slide" id="s1">
+  <div style="font-size:3.5rem;margin-bottom:1.5rem">🤔</div>
+  <p class="big-question">
+    Si une de vos antennes commence à <span>se dégrader silencieusement</span> à 2h du matin…<br>
+    comment le savez-vous <span>avant</span> que vos abonnés appellent pour se plaindre ?
+  </p>
+  <p class="question-sub">C'est exactement le problème que nous avons résolu pour le centre NOC de Tunisie Télécom Mahdia.</p>
+  <div class="reveal-answer">
+    <p>📡 <strong>120 antennes</strong> · <strong>9 zones</strong> · <strong>surveillance 24h/24</strong> — gérés manuellement, sans détection proactive.</p>
+  </div>
+  <p style="margin-top:2rem;color:#475569;font-size:.95rem" class="pulse">← Appuyez sur → pour continuer</p>
+</div>
+
+<!-- SLIDE 1: TITRE -->
+<div class="slide title-slide" id="s2">
+  <div class="logos">
+    <span style="font-size:1.2rem;color:#60a5fa">📡 Tunisie Télécom</span>
+    <span style="font-size:1.2rem;color:#a78bfa">🎓 Université</span>
+  </div>
+  <h1 style="font-size:3.5rem">GEO-TÉLÉCOM NOC</h1>
+  <h3 style="font-size:1.4rem;color:#a78bfa;margin-bottom:1.5rem">Plateforme Intelligente de Supervision des Réseaux Télécoms</h3>
+  <p>Direction Régionale de Mahdia — Tunisie Télécom</p>
+  <p style="margin-top:2rem"><span class="highlight">Malek Maadi</span> &amp; <span class="highlight">Abir Said</span></p>
+  <p>Licence Réseaux &amp; Télécommunications — 2025/2026</p>
+</div>
+
+<!-- SLIDE 2: ACCROCHE -->
+<div class="slide" id="s3">
+  <h2>🎯 Le Problème</h2>
+  <div class="grid grid-3" style="margin-bottom:2rem">
+    <div class="kpi"><div class="num">120</div><div class="lbl">Antennes à superviser</div></div>
+    <div class="kpi"><div class="num">9</div><div class="lbl">Zones géographiques</div></div>
+    <div class="kpi"><div class="num" style="color:#f87171">0</div><div class="lbl">Outil de détection proactive</div></div>
+  </div>
+  <div class="grid grid-2">
+    <div class="card">
+      <h4>❌ Avant : Supervision Réactive</h4>
+      <p>Panne survient → Alarme → Détection manuelle → Intervention</p>
+      <p class="danger" style="margin-top:.5rem">⚠️ Trop tard — abonnés impactés</p>
+    </div>
+    <div class="card">
+      <h4>✅ Avec GEO-TÉLÉCOM NOC</h4>
+      <p>Dégradation → IA détecte → Alerte auto → Intervention préventive</p>
+      <p class="good" style="margin-top:.5rem">⚡ 10 minutes avant la panne</p>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 3: CONTEXTE -->
+<div class="slide" id="s4">
+  <h2>🏢 Contexte &amp; Organisme</h2>
+  <div class="grid grid-2">
+    <div>
+      <div class="card" style="margin-bottom:1rem">
+        <h4>Tunisie Télécom</h4>
+        <p>Opérateur historique national · Fondé 1995 · 8 000 employés · 97% couverture territoire</p>
+      </div>
+      <div class="card">
+        <h4>Centre Régional Mahdia</h4>
+        <ul>
+          <li>120 antennes (3G/4G/4G+/5G/FH)</li>
+          <li>9 zones géographiques</li>
+          <li>Supervision 24h/24</li>
+          <li>Gestion des incidents réseau</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card">
+      <h4>⚠️ Limites de l'existant</h4>
+      <table>
+        <tr><th>Limitation</th><th>Impact</th></tr>
+        <tr><td>❌ Pas d'IA</td><td>Pas de détection proactive</td></tr>
+        <tr><td>❌ Supervision réactive</td><td>Intervention après panne</td></tr>
+        <tr><td>❌ Pas de SIG</td><td>Aucune vision géographique</td></tr>
+        <tr><td>❌ Pas de RBAC</td><td>Accès non contrôlé</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 4: SOLUTION -->
+<div class="slide" id="s5">
+  <h2>💡 Notre Solution</h2>
+  <div class="grid grid-3" style="margin-bottom:1.5rem">
+    <div class="card"><h4>🗺️ Carte SIG</h4><p>Leaflet.js + GeoServer + PostGIS — visualisation géographique temps réel</p></div>
+    <div class="card"><h4>🤖 IA Temps Réel</h4><p>Isolation Forest (scikit-learn) — détection anomalies automatique</p></div>
+    <div class="card"><h4>⚡ Dashboard 24/7</h4><p>React.js — KPIs réseau, alertes critiques, refresh 10 secondes</p></div>
+    <div class="card"><h4>🔐 Sécurité RBAC</h4><p>2 rôles : Admin &amp; Modérateur — sessions Flask sécurisées</p></div>
+    <div class="card"><h4>📊 Rapports Auto</h4><p>Export PDF (ReportLab) et Excel (openpyxl) en un clic</p></div>
+    <div class="card"><h4>🔄 Simulation IoT</h4><p>Génération métriques réalistes toutes les 10 minutes</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 5: ARCHITECTURE -->
+<div class="slide" id="s6">
+  <h2>🏗️ Architecture — 6 Services Docker</h2>
+  <div class="grid grid-2">
+    <div class="arch">
+🌐 Navigateur (port 3000)
+        │ HTTP
+┌───────▼──────────────┐
+│  React.js + Nginx    │
+└───────┬──────────────┘
+        │ REST API
+┌───────▼──────────────┐    ┌────────────────┐
+│  Flask + Gunicorn    │◄───│  Simulation    │
+│     (port 7000)      │    │  IoT (10 min)  │
+└───────┬──────────────┘    └────────────────┘
+        │ psycopg2
+┌───────▼──────────────┐
+│  PostgreSQL/PostGIS  │
+│     (port 6000)      │
+└───┬──────────────────┘
+    │
+┌───▼────────┐  ┌────────────────┐
+│ GeoServer  │  │  GeoNetwork    │
+│  (:8080)   │  │   (:8081)      │
+└────────────┘  └────────────────┘
+    </div>
+    <div>
+      <table>
+        <tr><th>Service</th><th>Port</th><th>Rôle</th></tr>
+        <tr><td>postgres</td><td>6000</td><td>Base PostGIS</td></tr>
+        <tr><td>api</td><td>7000</td><td>Flask REST API</td></tr>
+        <tr><td>simulation</td><td>—</td><td>Métriques IoT</td></tr>
+        <tr><td>frontend</td><td>3000</td><td>React/Nginx</td></tr>
+        <tr><td>geoserver</td><td>8080</td><td>WMS/WFS</td></tr>
+        <tr><td>geonetwork</td><td>8081</td><td>Catalogue SIG</td></tr>
+      </table>
+      <div class="card" style="margin-top:1rem">
+        <h4>1 commande pour tout démarrer :</h4>
+        <p style="font-family:monospace;color:#4ade80">docker compose up -d</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 6: BASE DE DONNÉES -->
+<div class="slide" id="s7">
+  <h2>🗄️ Base de Données — PostgreSQL/PostGIS</h2>
+  <div class="grid grid-3">
+    <div class="card">
+      <h4>📡 antennes</h4>
+      <p style="font-family:monospace;font-size:.85rem;color:#7dd3fc">
+        id · nom · type<br>zone · statut<br>risk_score<br><span class="highlight">geom GEOMETRY(Point)</span>
+      </p>
+      <p style="margin-top:.5rem;font-size:.85rem">120 antennes Mahdia avec coordonnées GPS</p>
+    </div>
+    <div class="card">
+      <h4>📊 mesures</h4>
+      <p style="font-family:monospace;font-size:.85rem;color:#7dd3fc">
+        id · antenne_id · timestamp<br>rssi_dbm · snr_db<br>debit_mbps · latence_ms<br>ber · cpu · temperature
+      </p>
+      <p style="margin-top:.5rem;font-size:.85rem">8 métriques réseau analysées par l'IA</p>
+    </div>
+    <div class="card">
+      <h4>🚨 incidents</h4>
+      <p style="font-family:monospace;font-size:.85rem;color:#7dd3fc">
+        id · antenne_id<br>gravite · description<br>statut · date_creation<br>date_resolution
+      </p>
+      <p style="margin-top:.5rem;font-size:.85rem">Créés automatiquement par l'IA</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1.2rem">
+    <h4>🌍 Pourquoi PostGIS ?</h4>
+    <p>Type natif <span style="font-family:monospace;color:#60a5fa">GEOMETRY(Point, 4326)</span> — GeoServer lit directement les données en WMS pour la carte Leaflet.</p>
+  </div>
+</div>
+
+<!-- SLIDE 7: MODULE IA -->
+<div class="slide" id="s8">
+  <h2>🤖 Module IA — Isolation Forest</h2>
+  <div class="pipe" style="margin-bottom:1.5rem">
+    <div class="pipe-box">8 Métriques<br><small>RSSI·SNR·Débit<br>Latence·BER·CPU<br>Temp·Dispo</small></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-box" style="border-color:#a78bfa;background:#2d1b69">Isolation<br>Forest<br><small>scikit-learn</small></div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-box">Score<br>[-1, +1]</div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-box">Normalisation<br>[0 — 100]</div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-box">
+      <span class="good">0-40 ✅ Normal</span><br>
+      <span class="warn">41-70 ⚠️ Alerte</span><br>
+      <span class="danger">71-100 🔴 Critique</span>
+    </div>
+  </div>
+  <div class="grid grid-3">
+    <div class="card"><h4>✅ Non supervisé</h4><p>Pas besoin de données étiquetées — idéal en contexte industriel TT</p></div>
+    <div class="card"><h4>⚡ Rapide</h4><p>120 antennes analysées en moins de 2 secondes</p></div>
+    <div class="card"><h4>🔄 Automatique</h4><p>Incidents créés et carte mise à jour après chaque cycle</p></div>
+  </div>
+</div>
+
+<!-- SLIDE 8: METHODOLOGIE -->
+<div class="slide" id="s9">
+  <h2>📋 Méthodologie — Scrum (4 Sprints)</h2>
+  <div class="sprint">
+    <div class="sprint-item">
+      <h4>Sprint 1 · Sem 1-2</h4>
+      <p>Backend Flask REST API</p>
+      <p>PostgreSQL / PostGIS</p>
+      <p>Docker Compose</p>
+      <p>Authentification RBAC</p>
+    </div>
+    <div class="sprint-item">
+      <h4>Sprint 2 · Sem 3-4</h4>
+      <p>Dashboard React.js</p>
+      <p>Carte Leaflet</p>
+      <p>GeoServer WMS</p>
+      <p>Gestion antennes</p>
+    </div>
+    <div class="sprint-item">
+      <h4>Sprint 3 · Sem 5-6</h4>
+      <p>Isolation Forest IA</p>
+      <p>Incidents automatiques</p>
+      <p>Rapports PDF/Excel</p>
+      <p>Panel Admin IA</p>
+    </div>
+    <div class="sprint-item">
+      <h4>Sprint 4 · Sem 7-8</h4>
+      <p>Simulateur IoT 10min</p>
+      <p>Alertes critiques</p>
+      <p>Chat interne NOC</p>
+      <p>Intégration finale</p>
+    </div>
+  </div>
+  <div class="grid grid-2" style="margin-top:1.2rem">
+    <div class="card"><h4>Modélisation UML</h4><p>Diagrammes cas d'utilisation · Classes · Séquences</p></div>
+    <div class="card"><h4>Stack Technologique</h4>
+      <span class="badge">Python 3.11</span><span class="badge">Flask 3.0</span><span class="badge">React 18</span>
+      <span class="badge">PostGIS 3.4</span><span class="badge">Docker</span><span class="badge">scikit-learn</span>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE 9: DEMO -->
+<div class="slide" id="s10">
+  <h2>🎬 Démonstration Live</h2>
+  <div class="grid grid-3">
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem">🔐</div>
+      <h4>1. Login</h4>
+      <p>localhost:3000<br>admin / admin123</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem">📊</div>
+      <h4>2. Dashboard</h4>
+      <p>KPIs + Bandeau alertes critiques</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem">🗺️</div>
+      <h4>3. Carte Réseau</h4>
+      <p>120 antennes Mahdia — marqueurs colorés</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem">📡</div>
+      <h4>4. Antennes</h4>
+      <p>Tableau filtrable + historique métriques</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem">🤖</div>
+      <h4>5. Module IA</h4>
+      <p>Logs Isolation Forest + scores + incidents</p>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-size:2.5rem">📋</div>
+      <h4>6. Rapports</h4>
+      <p>Export PDF / Excel en un clic</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:1rem;text-align:center">
+    <p>🌐 <span style="font-family:monospace;color:#4ade80">http://localhost:3000</span> &nbsp;|&nbsp; API : <span style="font-family:monospace;color:#4ade80">http://localhost:7000/health</span></p>
+  </div>
+</div>
+
+<!-- SLIDE 10: BILAN -->
+<div class="slide" id="s11">
+  <h2>📈 Bilan du Projet</h2>
+  <table>
+    <tr><th>✅ Réalisé</th><th>⚠️ Limites</th><th>🚀 Perspectives</th></tr>
+    <tr>
+      <td class="good">Architecture microservices Docker complète</td>
+      <td class="warn">Données simulées (pas SNMP réel)</td>
+      <td>Intégration SNMP Huawei/Ericsson</td>
+    </tr>
+    <tr>
+      <td class="good">IA Isolation Forest non supervisée</td>
+      <td class="warn">Modèle entraîné sur données simulées</td>
+      <td>LSTM pour prédiction temporelle</td>
+    </tr>
+    <tr>
+      <td class="good">SIG temps réel (PostGIS + GeoServer)</td>
+      <td class="warn">Pas de HTTPS en production</td>
+      <td>Déploiement cloud + SSL/TLS</td>
+    </tr>
+    <tr>
+      <td class="good">RBAC 2 rôles + sessions sécurisées</td>
+      <td class="warn">Interface mobile absente</td>
+      <td>App React Native terrain</td>
+    </tr>
+    <tr>
+      <td class="good">Rapports PDF + Excel automatisés</td>
+      <td class="warn">GeoNetwork partiellement intégré</td>
+      <td>Catalogue ISO 19115 complet</td>
+    </tr>
+  </table>
+</div>
+
+<!-- SLIDE 11: CONCLUSION -->
+<div class="slide" id="s12">
+  <div style="text-align:center">
+    <h1 style="font-size:2.5rem;margin-bottom:1.5rem">Conclusion</h1>
+    <p style="font-size:1.3rem;max-width:800px;margin:0 auto 2rem;color:#e2e8f0;line-height:2">
+      <span class="highlight">GEO-TÉLÉCOM NOC</span> transforme la supervision réseau de Tunisie Télécom Mahdia :<br>
+      d'une approche <span class="danger">réactive et manuelle</span><br>
+      à une plateforme <span class="good">intelligente, proactive et géospatiale.</span>
+    </p>
+    <div class="grid grid-3" style="max-width:700px;margin:0 auto 2rem">
+      <div class="kpi"><div class="num">6</div><div class="lbl">Services Docker</div></div>
+      <div class="kpi"><div class="num">120</div><div class="lbl">Antennes supervisées</div></div>
+      <div class="kpi"><div class="num">10s</div><div class="lbl">Refresh temps réel</div></div>
+    </div>
+    <p style="font-size:1.4rem;color:#a78bfa;font-weight:600">Ce projet est prêt pour un déploiement pilote. 🚀</p>
+    <p style="margin-top:2rem;color:#475569;font-size:1.1rem">Merci — Questions ?</p>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="logo">📡 GEO-TÉLÉCOM NOC</div>
+<div class="counter" id="counter">1 / 12</div>
+<div class="nav">
+  <button onclick="prev()">← Précédent</button>
+  <button onclick="next()">Suivant →</button>
+</div>
+
+<script>
+let cur=1,total=12;
+function show(n){
+  document.querySelectorAll('.slide').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  document.getElementById('counter').textContent=n+' / '+total;
+}
+function next(){if(cur<total){cur++;show(cur);}}
+function prev(){if(cur>1){cur--;show(cur);}}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown')next();
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp')prev();
+});
+</script>
+</body>
+</html>

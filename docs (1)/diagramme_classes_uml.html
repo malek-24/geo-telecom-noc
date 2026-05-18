@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Diagramme de Classes UML - Base de Données</title>
+    <!-- Chargement de Mermaid.js depuis un CDN -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ 
+            startOnLoad: true, 
+            theme: 'default',
+            class: {
+                hideEmptyMembersBox: true
+            }
+        });
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid #dee2e6;
+        }
+        h2 {
+            text-align: center;
+            color: #343a40;
+            margin-bottom: 20px;
+            font-size: 22px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Diagramme de Classes UML (Base de Données)</h2>
+        <!-- Code Mermaid du diagramme de classes -->
+        <div class="mermaid">
+            classDiagram
+                direction LR
+
+                class users {
+                    +Integer id [PK]
+                    +String username
+                    +String fullname
+                    +String email
+                    +String password_hash
+                    +String role
+                    +String department
+                    +String phone
+                    +String status
+                    +Timestamp last_login
+                    +Timestamp created_at
+                }
+
+                class antennes {
+                    +Integer id [PK]
+                    +String nom
+                    +String zone
+                    +String type
+                    +Float latitude
+                    +Float longitude
+                    +String operateur
+                    +String statut
+                    +Date date_installation
+                    +Geometry geom
+                }
+
+                class mesures {
+                    +Integer id [PK]
+                    +Integer antenne_id [FK]
+                    +Float temperature
+                    +Float cpu
+                    +Float ram
+                    +Float signal
+                    +Float traffic
+                    +Float latence
+                    +Float packet_loss
+                    +Float disponibilite
+                    +Float jitter
+                    +String statut
+                    +Float risk_score
+                    +Timestamp date_mesure
+                }
+
+                class incidents {
+                    +Integer id [PK]
+                    +Integer antenne_id [FK]
+                    +String titre
+                    +String type_anomalie
+                    +Text description
+                    +String statut
+                    +String criticite
+                    +String source_detection
+                    +JSONB metriques
+                    +Integer duree_minutes
+                    +Timestamp date_creation
+                    +Timestamp date_resolution
+                }
+
+                antennes "1" *-- "0..*" mesures : Possède (Historique)
+                antennes "1" *-- "0..*" incidents : Subit (Alertes IA)
+        </div>
+    </div>
+
+</body>
+</html>
