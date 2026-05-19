@@ -150,21 +150,14 @@ void lireEtEnvoyer() {
   Serial.print(humidite, 1);
   Serial.println(" %");
 
-  // Construction du JSON à envoyer
+  // Construction du JSON à envoyer (5 métriques conservées)
   StaticJsonDocument<256> doc;
   doc["antenne_id"]    = ANTENNE_ID;
-  doc["temperature"]   = round(temperature * 10.0) / 10.0;  // 1 décimale
-
-  // Métriques réseau simulées (l'ESP32 n'a pas ces capteurs)
-  // En production, vous brancheriez d'autres capteurs ou récupéreriez via SNMP
+  doc["temperature"]   = round(temperature * 10.0) / 10.0;
   doc["cpu"]           = simulerCPU(temperature);
-  doc["ram"]           = random(20, 60);
   doc["signal"]        = WiFi.RSSI();   // Signal WiFi réel de l'ESP32
-  doc["traffic"]       = random(50, 300);
   doc["latence"]       = random(5, 50);
   doc["disponibilite"] = (temperature < 70.0) ? 99.5 : 85.0;
-  doc["packet_loss"]   = (temperature > 75.0) ? 2.5 : 0.1;
-  doc["jitter"]        = random(1, 10);
 
   String jsonBody;
   serializeJson(doc, jsonBody);

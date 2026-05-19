@@ -6,46 +6,60 @@
    ═══════════════════════════════════════════════════════════ */
 :root {
   /* ── Backgrounds ── */
-  --bg:              #f5f6fa;
+  --bg:              #f8fafc;
   --surface:         #ffffff;
-  --surface-hover:   #f0f2f8;
+  --surface-hover:   #f1f5f9;
 
   /* ── Borders ── */
-  --border:          #e4e7ef;
-  --border-strong:   #c8cde0;
+  --border:          #e2e8f0;
+  --border-strong:   #cbd5e1;
 
   /* ── Typography ── */
-  --text:            #1a1d2e;
-  --text-muted:      #6b7280;
-  --text-light:      #9ca3af;
+  --text:            #0f172a;
+  --text-muted:      #64748b;
+  --text-light:      #94a3b8;
 
-  /* ── Brand / Accent — Indigo ── */
-  --accent:          #4f46e5;
-  --accent-hover:    #4338ca;
-  --accent-soft:     rgba(79, 70, 229, 0.09);
+  /* ── Brand / Accent — Bleu Télécom ── */
+  --primary:         #2563eb;
+  --primary-hover:   #1d4ed8;
+  --primary-lt:      #eff6ff;
+  --accent:          #2563eb;
+  --accent-hover:    #1d4ed8;
+  --accent-soft:     rgba(37, 99, 235, 0.08);
 
   /* ── Status colors ── */
-  --danger:          #e11d48;
-  --danger-bg:       rgba(225, 29, 72, 0.08);
+  --danger:          #dc2626;
+  --danger-lt:       #fff1f2;
+  --danger-bg:       rgba(220, 38, 38, 0.08);
   --warning:         #d97706;
+  --warning-lt:      #fffbeb;
   --warning-bg:      rgba(217, 119, 6, 0.09);
-  --success:         #059669;
-  --success-bg:      rgba(5, 150, 105, 0.09);
+  --success:         #16a34a;
+  --success-lt:      #f0fdf4;
+  --success-bg:      rgba(22, 163, 74, 0.09);
   --info:            #0369a1;
   --info-bg:         rgba(3, 105, 161, 0.08);
 
   /* ── Shadows ── */
-  --shadow-sm:       0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md:       0 4px 16px rgba(0, 0, 0, 0.07);
+  --shadow-sm:       0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md:       0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg:       0 8px 32px rgba(0, 0, 0, 0.10);
 
   /* ── Radii ── */
-  --radius:          10px;
-  --radius-sm:       7px;
-  --radius-lg:       14px;
+  --radius:          12px;
+  --radius-sm:       8px;
+  --radius-lg:       16px;
 
   /* ── Sidebar ── */
-  --sidebar-bg:      #1e2140;
-  --sidebar-width:   232px;
+  --sidebar-bg:      #1e293b;
+  --sidebar-width:   230px;
+
+  /* ── Typographie ── */
+  --fs-xs:   0.72rem;
+  --fs-sm:   0.82rem;
+  --fs-base: 0.9rem;
+  --fs-lg:   1.1rem;
+  --fs-xl:   1.4rem;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -296,18 +310,21 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 9px;
+  padding: 3px 10px;
   border-radius: 20px;
-  font-size: 0.68rem;
+  font-size: 0.71rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.03em;
+  border: 1px solid transparent;
+  white-space: nowrap;
 }
 
-.badge-danger  { background: var(--danger-bg);  color: var(--danger);  }
-.badge-warning { background: var(--warning-bg); color: var(--warning); }
-.badge-success { background: var(--success-bg); color: var(--success); }
-.badge-info    { background: var(--info-bg);    color: var(--info);    }
+.badge-danger   { background: var(--danger-lt);   color: var(--danger);   border-color: #fecaca; }
+.badge-warning  { background: var(--warning-lt);  color: var(--warning);  border-color: #fde68a; }
+.badge-success  { background: var(--success-lt);  color: var(--success);  border-color: #86efac; }
+.badge-primary  { background: var(--primary-lt);  color: var(--primary);  border-color: #bfdbfe; }
+.badge-info     { background: var(--info-bg);     color: var(--info);     border-color: #7dd3fc; }
+.badge-neutral  { background: #f1f5f9;             color: var(--text-muted); border-color: var(--border); }
 
 /* ═══════════════════════════════════════════════════════════
    BUTTONS
@@ -328,42 +345,43 @@ body {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--primary);
   color: white;
-  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.22);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
-
 .btn-primary:hover {
-  background: var(--accent-hover);
-  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.32);
-  transform: translateY(-1px);
+  background: var(--primary-hover);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
 }
 
 .btn-secondary {
   background: var(--surface);
   color: var(--text-muted);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
 }
-
 .btn-secondary:hover {
-  background: var(--surface-hover);
-  color: var(--text);
-  border-color: var(--border-strong);
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-lt);
 }
 
 .btn-danger {
-  background: var(--danger-bg);
-  color: var(--danger);
+  background: var(--danger);
+  color: white;
 }
+.btn-danger:hover { background: #b91c1c; }
 
-.btn-danger:hover {
-  background: rgba(225, 29, 72, 0.14);
+.btn-success {
+  background: var(--success);
+  color: white;
 }
+.btn-success:hover { background: #15803d; }
+
+.btn-sm { padding: 6px 12px; font-size: var(--fs-xs); }
 
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
-  transform: none !important;
   box-shadow: none !important;
 }
 

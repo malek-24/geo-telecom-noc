@@ -1,7 +1,6 @@
 """
 routes/antennes_routes.py — CRUD antennes, statistiques et dashboard
-Expose tous les endpoints liés aux antennes, mesures,
-statistiques réseau et résumé du tableau de bord.
+Métriques : temperature, cpu, signal, latence, disponibilite
 """
 import time
 from datetime import datetime
@@ -24,8 +23,8 @@ network_bp = Blueprint('network_bp', __name__)
 @token_required
 def liste_antennes():
     """
-    Retourne TOUTES les antennes avec leur dernière mesure (LEFT JOIN LATERAL).
-    Les antennes sans mesures reçoivent des valeurs par défaut saines.
+    Retourne TOUTES les antennes avec leur dernière mesure.
+    Métriques : temperature, cpu, signal, latence, disponibilite
     """
     try:
         conn = connecter_base_de_donnees()
@@ -34,17 +33,12 @@ def liste_antennes():
                 a.id, a.nom, a.zone, a.type,
                 a.latitude, a.longitude,
                 a.date_installation::text,
-                COALESCE(m.temperature,    35.0) AS temperature,
-                COALESCE(m.cpu,            20.0) AS cpu,
-                COALESCE(m.ram,            25.0) AS ram,
-                COALESCE(m.signal,        -65.0) AS signal,
-                COALESCE(m.signal,        -65.0) AS signal_strength,
-                COALESCE(m.traffic,       100.0) AS traffic,
-                COALESCE(m.traffic,       100.0) AS debit,
-                COALESCE(m.latence,        15.0) AS latence,
-                COALESCE(m.packet_loss,     0.0) AS packet_loss,
-                COALESCE(m.disponibilite,  99.0) AS disponibilite,
-                COALESCE(m.jitter,          0.0) AS jitter,
+                COALESCE(m.temperature,   35.0) AS temperature,
+                COALESCE(m.cpu,           20.0) AS cpu,
+                COALESCE(m.signal,       -65.0) AS signal,
+                COALESCE(m.signal,       -65.0) AS signal_strength,
+                COALESCE(m.latence,       15.0) AS latence,
+                COALESCE(m.disponibilite, 99.0) AS disponibilite,
                 CASE
                     WHEN a.statut = 'maintenance' THEN 'maintenance'
                     ELSE COALESCE(m.statut, 'normal')
@@ -69,7 +63,6 @@ def liste_antennes():
                 "alerte":   "Warning",
                 "critique": "Anomaly detected",
             }).fillna("Healthy")
-            df["anomaly_state"] = df["statut"].eq("critique")
 
         return jsonify(df.to_dict(orient="records"))
     except Exception as e:
@@ -88,15 +81,11 @@ def get_antenne(ant_id):
                 a.id, a.nom, a.zone, a.type, a.operateur,
                 a.latitude, a.longitude,
                 a.date_installation::text,
-                COALESCE(m.temperature,    35.0) AS temperature,
-                COALESCE(m.cpu,            20.0) AS cpu,
-                COALESCE(m.ram,            25.0) AS ram,
-                COALESCE(m.signal,        -65.0) AS signal,
-                COALESCE(m.traffic,       100.0) AS traffic,
-                COALESCE(m.latence,        15.0) AS latence,
-                COALESCE(m.packet_loss,     0.0) AS packet_loss,
-                COALESCE(m.disponibilite,  99.0) AS disponibilite,
-                COALESCE(m.jitter,          0.0) AS jitter,
+                COALESCE(m.temperature,   35.0) AS temperature,
+                COALESCE(m.cpu,           20.0) AS cpu,
+                COALESCE(m.signal,       -65.0) AS signal,
+                COALESCE(m.latence,       15.0) AS latence,
+                COALESCE(m.disponibilite, 99.0) AS disponibilite,
                 CASE
                     WHEN a.statut = 'maintenance' THEN 'maintenance'
                     ELSE COALESCE(m.statut, 'normal')
@@ -124,27 +113,22 @@ def get_antenne(ant_id):
 @network_bp.route("/antennes/<int:ant_id>/mesures", methods=["GET"])
 @token_required
 def get_antenne_mesures(ant_id):
-    """
-    Retourne l'historique chronologique des mesures d'une antenne.
-    Paramètre optionnel : ?limit=24 (défaut)
-    """
+    """Retourne l'historique chronologique des mesures d'une antenne."""
     limit = request.args.get("limit", 24, type=int)
     try:
         conn = connecter_base_de_donnees()
         df   = pd.read_sql("""
             SELECT
                 to_char(date_mesure, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ts,
-                temperature, cpu, ram, signal, traffic, latence,
-                packet_loss, disponibilite, jitter,
-                COALESCE(statut, 'normal')     AS statut,
-                COALESCE(risk_score, 0.0)      AS risk_score
+                temperature, cpu, signal, latence, disponibilite,
+                COALESCE(statut, 'normal') AS statut,
+                COALESCE(risk_score, 0.0)  AS risk_score
             FROM mesures
             WHERE antenne_id = %(ant_id)s
             ORDER BY date_mesure DESC
             LIMIT %(limit)s
         """, conn, params={"ant_id": ant_id, "limit": limit})
         conn.close()
-        # Remise en ordre chronologique pour les graphiques
         df = df.iloc[::-1].reset_index(drop=True)
         return jsonify(df.to_dict(orient="records"))
     except Exception as e:
@@ -162,8 +146,8 @@ def get_antenne_incidents(ant_id):
         cur.execute("""
             SELECT id, titre, description, statut, criticite,
                    source_detection, duree_minutes,
-                   to_char(date_creation, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_creation,
-                   to_char(date_resolution, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_resolution
+                   to_char(date_creation,  'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_creation,
+                   to_char(date_resolution,'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_resolution
             FROM incidents
             WHERE antenne_id = %s
             ORDER BY date_creation DESC
@@ -183,10 +167,7 @@ def get_antenne_incidents(ant_id):
 @network_bp.route("/stats", methods=["GET"])
 @token_required
 def stats_globales():
-    """
-    Retourne les statistiques globales du réseau.
-    Source : vue antennes_statut (dernière mesure IA de chaque antenne).
-    """
+    """Retourne les statistiques globales du réseau."""
     try:
         conn = connecter_base_de_donnees()
         cur  = conn.cursor()
@@ -198,9 +179,8 @@ def stats_globales():
         by_status = dict(cur.fetchall())
 
         cur.execute("""
-            SELECT AVG(disponibilite), AVG(debit), SUM(debit),
-                   AVG(latence), AVG(cpu), AVG(temperature),
-                   AVG(packet_loss), AVG(jitter)
+            SELECT AVG(disponibilite), AVG(latence), AVG(cpu),
+                   AVG(temperature),  AVG(signal)
             FROM antennes_statut
         """)
         avg = cur.fetchone()
@@ -211,21 +191,18 @@ def stats_globales():
         cur.close(); conn.close()
 
         return jsonify({
-            "total_antennes":        total,
-            "en_ligne":              by_status.get("normal",      0),
-            "alertes":               by_status.get("alerte",      0),
-            "critique":              by_status.get("critique",    0),
-            "maintenance":           by_status.get("maintenance", 0),
+            "total_antennes":       total,
+            "en_ligne":             by_status.get("normal",      0),
+            "alertes":              by_status.get("alerte",      0),
+            "critique":             by_status.get("critique",    0),
+            "maintenance":          by_status.get("maintenance", 0),
             "disponibilite_globale": round(float(avg[0] or 100), 2),
-            "debit_moyen":           round(float(avg[1] or 0),   2),
-            "latence_moyenne":       round(float(avg[3] or 0),   2),
-            "packet_loss_moyen":     round(float(avg[6] or 0),   2),
-            "jitter_moyen":          round(float(avg[7] or 0),   2),
-            "cpu_moyen":             round(float(avg[4] or 0),   2),
-            "temperature_moyenne":   round(float(avg[5] or 0),   2),
-            "incidents_actifs":      incidents_actifs,
-            "debit_total":           round(float(avg[2] or 0),   2),
-            "antennes_actives":      total - by_status.get("maintenance", 0),
+            "latence_moyenne":      round(float(avg[1] or 0),   2),
+            "cpu_moyen":            round(float(avg[2] or 0),   2),
+            "temperature_moyenne":  round(float(avg[3] or 0),   2),
+            "signal_moyen":         round(float(avg[4] or -65), 2),
+            "incidents_actifs":     incidents_actifs,
+            "antennes_actives":     total - by_status.get("maintenance", 0),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -234,10 +211,7 @@ def stats_globales():
 @network_bp.route("/dashboard/summary", methods=["GET"])
 @token_required
 def get_dashboard_summary():
-    """
-    KPIs centralisés pour le tableau de bord principal.
-    Source unique de vérité : vue antennes_statut (résultats IA).
-    """
+    """KPIs centralisés pour le tableau de bord principal."""
     try:
         conn = connecter_base_de_donnees()
         cur  = conn.cursor()
@@ -247,13 +221,12 @@ def get_dashboard_summary():
 
         cur.execute("SELECT statut, COUNT(*) FROM antennes_statut GROUP BY statut")
         by_status   = dict(cur.fetchall())
-        nb_critique = by_status.get("critique",    0)
-        nb_alerte   = by_status.get("alerte",      0)
-        nb_normal   = by_status.get("normal",      0)
+        nb_critique = by_status.get("critique", 0)
+        nb_alerte   = by_status.get("alerte",   0)
+        nb_normal   = by_status.get("normal",   0)
 
         cur.execute("""
-            SELECT AVG(disponibilite), AVG(debit), AVG(cpu),
-                   AVG(latence), AVG(risk_score)
+            SELECT AVG(disponibilite), AVG(cpu), AVG(latence), AVG(risk_score)
             FROM antennes_statut
         """)
         avg = cur.fetchone()
@@ -269,7 +242,6 @@ def get_dashboard_summary():
 
         cur.close(); conn.close()
 
-        # Score de risque IA global (0-100%)
         ai_risk_score = 0.0
         if total_antennes > 0:
             ai_risk_score = min(100.0, ((nb_critique * 3 + nb_alerte) / total_antennes) * 100)
@@ -280,15 +252,14 @@ def get_dashboard_summary():
             "alertes":           nb_alerte,
             "critique":          nb_critique,
             "availability":      round(float(avg[0] or 100), 2),
-            "debit_moyen":       round(float(avg[1] or 0),   2),
-            "cpu_moyen":         round(float(avg[2] or 0),   2),
-            "latence_moyenne":   round(float(avg[3] or 0),   2),
+            "cpu_moyen":         round(float(avg[1] or 0),   2),
+            "latence_moyenne":   round(float(avg[2] or 0),   2),
             "incidents_actifs":  incidents_actifs,
             "active_alerts":     incidents_alertes,
             "incidents":         incidents_critiques,
             "anomalies":         nb_critique + nb_alerte,
             "ai_risk_score":     round(ai_risk_score, 1),
-            "ai_confidence":     96.4,   # Confiance du modèle Isolation Forest
+            "ai_confidence":     96.4,
         })
     except Exception as e:
         print(f"[ERREUR] GET /dashboard/summary : {e}")
@@ -298,10 +269,7 @@ def get_dashboard_summary():
 @network_bp.route("/dashboard/history", methods=["GET"])
 @token_required
 def get_dashboard_history():
-    """
-    Historique des KPIs réseau pour le graphique du dashboard.
-    Agrégation par cycle de 30 min sur les 12 dernières heures.
-    """
+    """Historique des KPIs réseau pour le graphique du dashboard."""
     try:
         conn = connecter_base_de_donnees()
         cur  = conn.cursor()
@@ -313,10 +281,10 @@ def get_dashboard_history():
                         * INTERVAL '30 minutes',
                     'HH24:MI'
                 ) AS time,
-                ROUND(AVG(cpu)::NUMERIC,           1) AS cpu,
-                ROUND(AVG(traffic)::NUMERIC,        1) AS debit,
-                ROUND(AVG(disponibilite)::NUMERIC,  1) AS disponibilite,
-                ROUND(AVG(latence)::NUMERIC,        1) AS latence,
+                ROUND(AVG(cpu)::NUMERIC,          1) AS cpu,
+                ROUND(AVG(disponibilite)::NUMERIC, 1) AS disponibilite,
+                ROUND(AVG(latence)::NUMERIC,       1) AS latence,
+                ROUND(AVG(signal)::NUMERIC,        1) AS signal,
                 COUNT(*) FILTER (WHERE statut = 'alerte')   AS alertes,
                 COUNT(*) FILTER (WHERE statut = 'critique') AS critiques
             FROM mesures
@@ -329,8 +297,8 @@ def get_dashboard_history():
         cur.close(); conn.close()
 
         for r in rows:
-            nb_a = int(r.get("alertes",  0) or 0)
-            nb_c = int(r.get("critiques",0) or 0)
+            nb_a = int(r.get("alertes",   0) or 0)
+            nb_c = int(r.get("critiques", 0) or 0)
             r["risque"]   = round(min(100, (nb_a + nb_c) * 2.5), 1)
             r["alertes"]  = nb_a
             r["critiques"] = nb_c
@@ -341,7 +309,7 @@ def get_dashboard_history():
 
 
 # ════════════════════════════════════════════════════════════════
-#  CRUD ANTENNES (Admin / Ingénieur)
+#  CRUD ANTENNES
 # ════════════════════════════════════════════════════════════════
 
 @network_bp.route("/antennes", methods=["POST"])
@@ -370,29 +338,27 @@ def creer_antenne():
                     ST_SetSRID(ST_MakePoint(%s, %s), 4326))
             RETURNING id
         """, (
-            nom, data['zone'], data['type'],
-            lat, lon,
+            nom, data['zone'], data['type'], lat, lon,
             data.get('operateur', 'Tunisie Telecom'),
             statut_initial, lon, lat
         ))
         new_id = cur.fetchone()[0]
 
-        # Mesure initiale pour que l'antenne soit visible sur la carte immédiatement
+        # Mesure initiale
         cur.execute("""
             INSERT INTO mesures
-                (antenne_id, temperature, cpu, ram, signal, traffic,
-                 latence, disponibilite, packet_loss, jitter, statut, date_mesure)
-            VALUES (%s, 35.0, 20.0, 25.0, -65.0, 100.0, 15.0, 99.0, 0.0, 0.0, %s, NOW())
+                (antenne_id, temperature, cpu, signal, latence, disponibilite, statut, date_mesure)
+            VALUES (%s, 35.0, 20.0, -65.0, 15.0, 99.0, %s, NOW())
         """, (new_id, statut_initial))
 
         conn.commit(); cur.close(); conn.close()
 
         ADMIN_LOGS.insert(0, {
-            "id": int(time.time()),
-            "heure": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "id":          int(time.time()),
+            "heure":       datetime.now().strftime("%Y-%m-%d %H:%M"),
             "utilisateur": g.current_user["username"],
-            "action": f"Création antenne {nom} (ID={new_id})",
-            "statut": "Succès"
+            "action":      f"Création antenne {nom} (ID={new_id})",
+            "statut":      "Succès"
         })
         return jsonify({"success": True, "id": new_id,
                         "message": f"Antenne {nom} créée avec succès."}), 201
@@ -432,11 +398,11 @@ def modifier_antenne(ant_id):
         conn.commit(); cur.close(); conn.close()
 
         ADMIN_LOGS.insert(0, {
-            "id": int(time.time()),
-            "heure": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "id":          int(time.time()),
+            "heure":       datetime.now().strftime("%Y-%m-%d %H:%M"),
             "utilisateur": g.current_user["username"],
-            "action": f"Modification antenne ID {ant_id}",
-            "statut": "Succès"
+            "action":      f"Modification antenne ID {ant_id}",
+            "statut":      "Succès"
         })
         return jsonify({"success": True, "message": f"Antenne {ant_id} mise à jour."})
     except Exception as e:
@@ -446,11 +412,10 @@ def modifier_antenne(ant_id):
 @network_bp.route("/antennes/<int:ant_id>", methods=["DELETE"])
 @role_required('administrateur')
 def supprimer_antenne(ant_id):
-    """Supprime une antenne et toutes ses données liées (Admin uniquement)."""
+    """Supprime une antenne et toutes ses données liées."""
     try:
         conn = connecter_base_de_donnees()
         cur  = conn.cursor()
-        # Suppression en cascade (incidents, mesures, puis antenne)
         cur.execute("DELETE FROM incidents WHERE antenne_id = %s", (ant_id,))
         cur.execute("DELETE FROM mesures   WHERE antenne_id = %s", (ant_id,))
         cur.execute("DELETE FROM antennes  WHERE id = %s",         (ant_id,))
@@ -460,11 +425,11 @@ def supprimer_antenne(ant_id):
         conn.commit(); cur.close(); conn.close()
 
         ADMIN_LOGS.insert(0, {
-            "id": int(time.time()),
-            "heure": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "id":          int(time.time()),
+            "heure":       datetime.now().strftime("%Y-%m-%d %H:%M"),
             "utilisateur": g.current_user["username"],
-            "action": f"Suppression antenne ID {ant_id}",
-            "statut": "Succès"
+            "action":      f"Suppression antenne ID {ant_id}",
+            "statut":      "Succès"
         })
         return jsonify({"success": True, "message": f"Antenne {ant_id} supprimée."})
     except Exception as e:

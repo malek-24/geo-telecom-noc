@@ -1,52 +1,65 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  ShieldCheck, CheckCircle2, Clock, AlertTriangle,
-  XCircle, ChevronDown, ChevronUp, RefreshCw, MessageSquare,
-  Wrench, UserCheck
+  ShieldCheck, CheckCircle2, Clock, AlertTriangle, XCircle,
+  ChevronDown, ChevronUp, RefreshCw, MessageSquare, Wrench,
+  UserCheck, Activity, Wifi, Thermometer, Cpu, Zap
 } from 'lucide-react';
 import axios from 'axios';
-
 import Sidebar from '../components/Sidebar';
 import { API_BASE_URL } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
 import { DATA_REFRESH_MS } from '../dataRefreshMs';
-import '../styles/IncidentsStyles.css';
+import './IncidentsPage.css';
 
-const CRIT_COLORS = {
-  critical: { label: 'Critique', badge: 'badge-danger' },
-  warning:  { label: 'Alerte',   badge: 'badge-warning' },
-  info:     { label: 'Info',     badge: 'badge-info' },
-};
-
+/* ── Helpers ─────────────────────────────────────────────── */
 const ROLE_LABELS = {
-  administrateur:      { label: 'Administrateur', color: '#7c3aed' },
-  ingenieur_reseau:      { label: 'Ingénieur Réseau', color: '#059669' },
-  technicien_terrain:  { label: 'Technicien Terrain', color: '#d97706' },
+  administrateur:     { label: 'Admin',      color: '#2563eb' },
+  ingenieur_reseau:   { label: 'Ingénieur',  color: '#7c3aed' },
+  technicien_terrain: { label: 'Technicien', color: '#d97706' },
 };
 
-export default function ModerationPage() {
+const METRIC_ICONS = {
+  temperature:  <Thermometer size={12}/>,
+  cpu:          <Cpu size={12}/>,
+  signal:       <Wifi size={12}/>,
+  latence:      <Activity size={12}/>,
+  disponibilite:<Zap size={12}/>,
+};
+
+const METRIC_UNITS = {
+  temperature: '°C', cpu: '%', signal: ' dBm',
+  latence: ' ms', disponibilite: '%', risk_score: '%',
+};
+
+function elapsedStr(d) {
+  if (!d) return '—';
+  const ms = Date.now() - new Date(d).getTime();
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `${h}h ${m}min` : `${m} min`;
+}
+
+/* ── Page principale ─────────────────────────────────────── */
+export default function IncidentsPage() {
   const { token, role } = useAuth();
+  const [incidents, setIncidents] = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [expanded,  setExpanded]  = useState(null);
+  const [filter,    setFilter]    = useState('tous');
+  const [resolving, setResolving] = useState(null);
+  const [comments,  setComments]  = useState([]);
+  const [newComment,setNewComment]= useState('');
+  const [newEtat,   setNewEtat]   = useState('en_cours');
+  const [sending,   setSending]   = useState(false);
 
-  const [incidents, setIncidents]         = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [expanded, setExpanded]           = useState(null);
-  const [filter, setFilter]               = useState('tous');
-  const [resolving, setResolving]         = useState(null);
-  const [comments, setComments]           = useState([]);
-  const [newComment, setNewComment]       = useState('');
-  const [newCommentEtat, setNewCommentEtat] = useState('en_cours');
-  const [sending, setSending]             = useState(false);
-
-  /* ── current user can resolve ? (admin + mod only) ── */
   const canResolve = ['administrateur', 'ingenieur_reseau'].includes(role);
 
   const fetchIncidents = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get(`${API_BASE_URL}/incidents`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setIncidents(res.data);
+      const r = await axios.get(`${API_BASE_URL}/incidents`,
+        { headers: { Authorization: `Bearer ${token}` } });
+      setIncidents(r.data);
     } catch (_) {}
     finally { setLoading(false); }
   }, [token]);
@@ -60,11 +73,8 @@ export default function ModerationPage() {
   const handleResolve = async (id) => {
     setResolving(id);
     try {
-      await axios.put(
-        `${API_BASE_URL}/incidents/${id}/resolve`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await axios.put(`${API_BASE_URL}/incidents/${id}/resolve`, {},
+        { headers: { Authorization: `Bearer ${token}` } });
       await fetchIncidents();
     } catch (_) {}
     setResolving(null);
@@ -72,75 +82,58 @@ export default function ModerationPage() {
 
   const loadComments = async (incId) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/incidents/${incId}/commentaires`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setComments(res.data);
+      const r = await axios.get(`${API_BASE_URL}/incidents/${incId}/commentaires`,
+        { headers: { Authorization: `Bearer ${token}` } });
+      setComments(r.data);
     } catch (_) {}
   };
 
   const handleExpand = (id) => {
-    if (expanded === id) {
-      setExpanded(null);
-    } else {
-      setExpanded(id);
-      setComments([]);
-      loadComments(id);
-    }
+    if (expanded === id) { setExpanded(null); return; }
+    setExpanded(id); setComments([]); loadComments(id);
   };
 
   const handlePostComment = async (incId) => {
     if (!newComment.trim()) return;
     setSending(true);
     try {
-      await axios.post(
-        `${API_BASE_URL}/incidents/${incId}/commentaires`,
-        { contenu: newComment, etat_resolution: newCommentEtat },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setNewComment('');
-      setNewCommentEtat('en_cours');
+      await axios.post(`${API_BASE_URL}/incidents/${incId}/commentaires`,
+        { contenu: newComment, etat_resolution: newEtat },
+        { headers: { Authorization: `Bearer ${token}` } });
+      setNewComment(''); setNewEtat('en_cours');
       await loadComments(incId);
-      if (newCommentEtat === 'réglé') await fetchIncidents();
-    } catch (e) {
-      const msg = e.response?.data?.error || "Erreur lors de l'envoi du commentaire.";
-      alert(msg);
-    } finally {
-      setSending(false);
-    }
+      if (newEtat === 'réglé') await fetchIncidents();
+    } catch (e) { alert(e.response?.data?.error || 'Erreur.'); }
+    finally { setSending(false); }
+  };
+
+  const stats = {
+    total:    incidents.length,
+    actifs:   incidents.filter(i => i.statut === 'en_cours').length,
+    resolus:  incidents.filter(i => i.statut === 'resolu').length,
+    critiques:incidents.filter(i => i.criticite === 'critical').length,
   };
 
   const FILTERS = [
-    { key: 'tous',     label: 'Tous',      count: incidents.length },
-    { key: 'en_cours', label: 'En cours',  count: incidents.filter(i => i.statut === 'en_cours').length },
-    { key: 'resolu',   label: 'Résolus',   count: incidents.filter(i => i.statut === 'resolu').length },
-    { key: 'critical', label: 'Critiques', count: incidents.filter(i => i.criticite === 'critical').length },
+    { key: 'tous',     label: 'Tous',      count: stats.total },
+    { key: 'en_cours', label: 'En cours',  count: stats.actifs },
+    { key: 'resolu',   label: 'Résolus',   count: stats.resolus },
+    { key: 'critical', label: 'Critiques', count: stats.critiques },
   ];
 
-  const filtered = incidents.filter(inc => {
-    if (filter === 'tous')     return true;
-    if (filter === 'critical') return inc.criticite === 'critical';
-    return inc.statut === filter;
-  });
-
-  const stats = {
-    actifs:    incidents.filter(i => i.statut === 'en_cours').length,
-    resolus:   incidents.filter(i => i.statut === 'resolu').length,
-    critiques: incidents.filter(i => i.criticite === 'critical').length,
-  };
-
-  /* ── page title / subtitle per role ── */
-  const pageTitle = role === 'technicien_terrain'
-    ? 'Interventions Terrain'
-    : 'Gestion des Incidents';
-  const pageSubtitle = role === 'technicien_terrain'
-    ? 'Anomalies et alertes détectées par l\'IA — ajoutez vos commentaires techniques'
-    : 'Validation et résolution des anomalies réseau détectées par Isolation Forest';
+  const filtered = incidents.filter(inc =>
+    filter === 'tous'     ? true :
+    filter === 'critical' ? inc.criticite === 'critical' :
+    inc.statut === filter
+  );
 
   if (loading) return (
     <div style={{ display: 'flex' }}>
       <Sidebar />
-      <div className="loading-center" style={{ flex: 1 }}><div className="spinner" /></div>
+      <div className="loading-center" style={{ flex: 1 }}>
+        <div className="spinner" />
+        <span>Chargement des incidents…</span>
+      </div>
     </div>
   );
 
@@ -148,207 +141,234 @@ export default function ModerationPage() {
     <div style={{ display: 'flex' }}>
       <Sidebar />
       <div className="page-content">
-        <div className="page-shell">
+        <div className="ip-shell">
 
-          {/* ── HEADER ── */}
-          <div className="page-header">
-            <div className="page-header-left">
-              <h1>
+          {/* ── EN-TÊTE ── */}
+          <div className="ip-header">
+            <div>
+              <h1 className="ip-title">
                 {role === 'technicien_terrain'
-                  ? <Wrench size={22} color="var(--accent)" />
-                  : <ShieldCheck size={22} color="var(--accent)" />
+                  ? <><Wrench size={20} /> Interventions Terrain</>
+                  : <><ShieldCheck size={20} /> Gestion des Incidents</>
                 }
-                {' '}{pageTitle}
               </h1>
-              <p>{pageSubtitle}</p>
+              <p className="ip-subtitle">
+                Anomalies détectées automatiquement par le modèle <strong>Isolation Forest</strong>
+              </p>
             </div>
             <button className="btn btn-secondary" onClick={fetchIncidents}>
               <RefreshCw size={14} /> Actualiser
             </button>
           </div>
 
-          {/* ── KPI STATS ── */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
-            {[
-              { label: 'En cours',  value: stats.actifs,    color: 'var(--warning)', icon: <AlertTriangle size={18} /> },
-              { label: 'Résolus',   value: stats.resolus,   color: 'var(--success)', icon: <CheckCircle2 size={18} /> },
-              { label: 'Critiques', value: stats.critiques, color: 'var(--danger)',  icon: <XCircle size={18} /> },
-            ].map(s => (
-              <div key={s.label} className="kpi-card" style={{ flex: 1 }}>
-                <div className="kpi-icon" style={{ background: `${s.color}18`, color: s.color }}>{s.icon}</div>
-                <div className="kpi-body">
-                  <div className="kpi-label">{s.label}</div>
-                  <div className="kpi-value" style={{ color: s.color }}>{s.value}</div>
-                </div>
-              </div>
-            ))}
+          {/* ── STATISTIQUES ── */}
+          <div className="ip-stats-row">
+            <div className="ip-stat ip-stat--blue">
+              <span className="ip-stat-num">{stats.total}</span>
+              <span className="ip-stat-lbl">Total</span>
+            </div>
+            <div className="ip-stat ip-stat--orange">
+              <span className="ip-stat-num">{stats.actifs}</span>
+              <span className="ip-stat-lbl">En cours</span>
+            </div>
+            <div className="ip-stat ip-stat--green">
+              <span className="ip-stat-num">{stats.resolus}</span>
+              <span className="ip-stat-lbl">Résolus</span>
+            </div>
+            <div className="ip-stat ip-stat--red">
+              <span className="ip-stat-num">{stats.critiques}</span>
+              <span className="ip-stat-lbl">Critiques</span>
+            </div>
           </div>
 
-          {/* ── FILTER TABS ── */}
-          <div className="mod-filter-tabs">
+          {/* ── FILTRES ── */}
+          <div className="ip-filters">
             {FILTERS.map(f => (
               <button
                 key={f.key}
-                className={`mod-tab${filter === f.key ? ' active' : ''}`}
+                className={`ip-filter-btn${filter === f.key ? ' active' : ''}`}
                 onClick={() => setFilter(f.key)}
               >
-                {f.label} <span className="mod-tab-count">{f.count}</span>
+                {f.label}
+                <span className="ip-filter-count">{f.count}</span>
               </button>
             ))}
           </div>
 
-          {/* ── INCIDENTS LIST ── */}
-          <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
+          {/* ── LISTE INCIDENTS ── */}
+          <div className="ip-list">
             {filtered.length === 0 ? (
-              <div className="empty-state" style={{ padding: '60px 20px' }}>
-                <CheckCircle2 size={36} color="var(--success)" />
+              <div className="ip-empty">
+                <CheckCircle2 size={40} color="var(--success)" />
                 <p>Aucun incident dans cette catégorie.</p>
               </div>
             ) : filtered.map(inc => {
-              const crit       = CRIT_COLORS[inc.criticite] || CRIT_COLORS.info;
-              const isOpen     = expanded === inc.id;
-              const isResolved = inc.statut === 'resolu';
+              const isCrit = inc.criticite === 'critical';
+              const isOpen = expanded === inc.id;
+              const isRes  = inc.statut === 'resolu';
+              const metrics = inc.metriques
+                ? (typeof inc.metriques === 'string' ? JSON.parse(inc.metriques) : inc.metriques)
+                : null;
 
               return (
-                <div key={inc.id} className={`mod-incident${isResolved ? ' resolved' : ''}`}>
+                <div key={inc.id}
+                  className={`ip-card ${isRes ? 'ip-card--resolved' : isCrit ? 'ip-card--critical' : 'ip-card--warning'}`}
+                >
+                  {/* En-tête de la carte */}
+                  <div className="ip-card-row" onClick={() => handleExpand(inc.id)}>
 
-                  {/* ── Row header ── */}
-                  <div className="mod-incident-row" onClick={() => handleExpand(inc.id)}>
-                    <div className={`mod-incident-bar ${inc.criticite}`} />
-                    <div className="mod-incident-info">
-                      <span className="mod-incident-title">{inc.titre}</span>
-                      <span className="mod-incident-meta">{inc.antenne} · {inc.zone}</span>
+                    {/* Titre + antenne */}
+                    <div className="ip-card-info">
+                      <div className="ip-card-title">{inc.titre}</div>
+                      <div className="ip-card-meta">
+                        {inc.antenne && <span><strong>{inc.antenne}</strong></span>}
+                        {inc.zone    && <span>· {inc.zone}</span>}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                      <span className={`badge ${crit.badge}`}>{crit.label}</span>
-                      <span className={`badge ${isResolved ? 'badge-success' : 'badge-warning'}`}>
-                        {isResolved ? 'Résolu' : 'En cours'}
+
+                    {/* Badges + heure */}
+                    <div className="ip-card-right">
+                      <span className={`ip-badge ${isCrit ? 'ip-badge--red' : 'ip-badge--orange'}`}>
+                        {isCrit ? 'Critique' : 'Alerte'}
                       </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span className={`ip-badge ${isRes ? 'ip-badge--green' : 'ip-badge--gray'}`}>
+                        {isRes ? '✓ Résolu' : 'En cours'}
+                      </span>
+                      <span className="ip-time">
                         <Clock size={12} />
-                        {new Date(inc.date_creation).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                        {new Date(inc.date_creation).toLocaleString('fr-FR', {
+                          day: '2-digit', month: '2-digit',
+                          hour: '2-digit', minute: '2-digit'
+                        })}
                       </span>
-                      {isOpen ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
+                      {isOpen
+                        ? <ChevronUp size={16} color="var(--text-light)" />
+                        : <ChevronDown size={16} color="var(--text-light)" />
+                      }
                     </div>
                   </div>
 
-                  {/* ── Expanded details ── */}
+                  {/* Détails dépliés */}
                   {isOpen && (
-                    <div className="mod-incident-detail">
-                      <div className="mod-detail-grid">
-                        <div className="mod-detail-item">
-                          <label>Description</label>
-                          <p>{inc.description || 'Aucune description disponible.'}</p>
+                    <div className="ip-detail">
+
+                      {/* Informations générales */}
+                      <div className="ip-info-grid">
+                        <div className="ip-info-box">
+                          <span className="ip-info-label">Description</span>
+                          <span className="ip-info-value">
+                            {inc.description || 'Analyse comportementale détectée par l\'IA.'}
+                          </span>
                         </div>
-                        <div className="mod-detail-item">
-                          <label>Source de détection</label>
-                          <p>{inc.source_detection || 'Isolation Forest'}</p>
+                        <div className="ip-info-box">
+                          <span className="ip-info-label">Source de détection</span>
+                          <span className="ip-info-value">{inc.source_detection || 'Isolation Forest'}</span>
                         </div>
-                        {inc.duree_minutes && (
-                          <div className="mod-detail-item">
-                            <label>Durée estimée</label>
-                            <p>{inc.duree_minutes} minutes</p>
-                          </div>
-                        )}
-                        {inc.metriques && (
-                          <div className="mod-detail-item" style={{ gridColumn: '1 / -1' }}>
-                            <label>Métriques au moment de la détection</label>
-                            <div className="mod-metrics-row">
-                              {Object.entries(
-                                typeof inc.metriques === 'string' ? JSON.parse(inc.metriques) : inc.metriques
-                              ).map(([k, v]) => (
-                                <div key={k} className="mod-metric-chip">
-                                  <span>{k}</span>
-                                  <strong>{typeof v === 'number' ? v.toFixed(1) : v}</strong>
-                                </div>
-                              ))}
-                            </div>
+                        <div className="ip-info-box">
+                          <span className="ip-info-label">Durée depuis détection</span>
+                          <span className="ip-info-value">{elapsedStr(inc.date_creation)}</span>
+                        </div>
+                        {inc.duree_minutes && !isRes && (
+                          <div className="ip-info-box">
+                            <span className="ip-info-label">Intervention estimée</span>
+                            <span className="ip-info-value" style={{ color: isCrit ? 'var(--danger)' : 'var(--warning)', fontWeight: 600 }}>
+                              ≈ {inc.duree_minutes} minutes
+                            </span>
                           </div>
                         )}
                       </div>
 
-                      {/* Bouton résoudre — admin + modérateur seulement */}
-                      {!isResolved && canResolve && (
-                        <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-                          <button
-                            className="btn btn-primary"
-                            onClick={() => handleResolve(inc.id)}
-                            disabled={resolving === inc.id}
-                          >
-                            <CheckCircle2 size={15} />
-                            {resolving === inc.id ? 'Résolution…' : 'Marquer comme résolu'}
-                          </button>
+                      {/* Métriques */}
+                      {metrics && Object.keys(metrics).length > 0 && (
+                        <div className="ip-metrics">
+                          <span className="ip-section-label">Métriques au moment de la détection</span>
+                          <div className="ip-metrics-list">
+                            {Object.entries(metrics).map(([k, v]) => (
+                              <div key={k} className="ip-metric-item">
+                                <span className="ip-metric-icon">{METRIC_ICONS[k] || <Activity size={12}/>}</span>
+                                <span className="ip-metric-key">{k}</span>
+                                <span className="ip-metric-val">
+                                  {typeof v === 'number' ? v.toFixed(1) : v}
+                                  {METRIC_UNITS[k] || ''}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
-                      {/* ── Commentaires techniques ── */}
-                      <div className="mod-comments-section" style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                        <h4 style={{ marginBottom: 12, fontSize: '1rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <MessageSquare size={16} color="var(--accent)" /> Commentaires techniques
-                        </h4>
+                      {/* Bouton résoudre */}
+                      {!isRes && canResolve && (
+                        <button
+                          className="btn btn-success ip-resolve-btn"
+                          onClick={() => handleResolve(inc.id)}
+                          disabled={resolving === inc.id}
+                        >
+                          <CheckCircle2 size={15} />
+                          {resolving === inc.id ? 'Résolution en cours…' : 'Marquer comme résolu'}
+                        </button>
+                      )}
 
-                        {/* Thread */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, maxHeight: 280, overflowY: 'auto' }}>
-                          {comments.length === 0 ? (
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                              Aucun commentaire pour cet incident.
-                            </p>
-                          ) : comments.map(c => {
-                            const rl = ROLE_LABELS[c.role] || { label: c.role, color: 'var(--text-muted)' };
-                            return (
-                              <div key={c.id} style={{
-                                background: 'var(--surface-hover)',
-                                padding: '12px 14px',
-                                borderRadius: 'var(--radius-sm)',
-                                borderLeft: `3px solid ${c.statut_validation === 'validé' ? 'var(--success)' : 'var(--warning)'}`
-                              }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                  <span style={{ fontWeight: 600, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <UserCheck size={13} color={rl.color} />
-                                    {c.utilisateur_nom}
-                                    <span style={{ background: rl.color + '22', color: rl.color, fontSize: '0.7rem', padding: '1px 7px', borderRadius: 20, fontWeight: 600 }}>
-                                      {rl.label}
+                      {/* Commentaires */}
+                      <div className="ip-comments">
+                        <span className="ip-section-label">
+                          <MessageSquare size={14} color="var(--accent)" /> Commentaires techniques
+                        </span>
+
+                        {/* Liste commentaires */}
+                        <div className="ip-comment-thread">
+                          {comments.length === 0
+                            ? <p className="ip-no-comment">Aucun commentaire pour cet incident.</p>
+                            : comments.map(c => {
+                              const rl = ROLE_LABELS[c.role] || { label: c.role, color: 'var(--text-muted)' };
+                              return (
+                                <div key={c.id}
+                                  className="ip-comment"
+                                  style={{ borderLeftColor: c.statut_validation === 'validé' ? 'var(--success)' : 'var(--warning)' }}
+                                >
+                                  <div className="ip-comment-header">
+                                    <span className="ip-comment-author">
+                                      <UserCheck size={13} color={rl.color} />
+                                      {c.utilisateur_nom}
+                                      <span className="ip-role-tag" style={{ color: rl.color, background: rl.color + '15' }}>
+                                        {rl.label}
+                                      </span>
                                     </span>
-                                  </span>
-                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{c.date_creation?.substring(0, 16)?.replace('T', ' ')}</span>
-                                </div>
-                                <p style={{ margin: '6px 0 8px', fontSize: '0.9rem', lineHeight: 1.5 }}>{c.contenu}</p>
-                                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                                  {c.statut_validation === 'validé' ? (
-                                    <span style={{ fontSize: '0.74rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                                      <CheckCircle2 size={11} /> Validé par administrateur
+                                    <span className="ip-comment-date">
+                                      {c.date_creation?.substring(0, 16)?.replace('T', ' ')}
                                     </span>
-                                  ) : (
-                                    <span style={{ fontSize: '0.74rem', color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                                      <Clock size={11} /> En attente de validation
-                                    </span>
-                                  )}
-                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                                    État : <strong style={{ color: c.etat_resolution === 'réglé' ? 'var(--success)' : c.etat_resolution === 'en_cours' ? 'var(--warning)' : 'var(--text-muted)' }}>
-                                      {c.etat_resolution === 'réglé' ? '✔ Réglé' : c.etat_resolution === 'en_cours' ? '⚙ En cours' : '⏳ À régler'}
-                                    </strong>
+                                  </div>
+                                  <p className="ip-comment-text">{c.contenu}</p>
+                                  <span className="ip-comment-etat" style={{
+                                    color: c.etat_resolution === 'réglé' ? 'var(--success)'
+                                         : c.etat_resolution === 'en_cours' ? 'var(--warning)'
+                                         : 'var(--text-light)'
+                                  }}>
+                                    {c.etat_resolution === 'réglé' ? '✔ Réglé'
+                                     : c.etat_resolution === 'en_cours' ? '⚙ En cours'
+                                     : '⏳ À régler'}
                                   </span>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })
+                          }
                         </div>
 
                         {/* Formulaire nouveau commentaire */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div className="ip-comment-form">
                           <textarea
+                            className="form-input"
                             value={newComment}
                             onChange={e => setNewComment(e.target.value)}
-                            placeholder="Ajouter un commentaire technique (ex: Antenne redémarrée, surchauffe confirmée…)"
-                            className="admin-input"
-                            style={{ minHeight: 64, resize: 'vertical' }}
+                            placeholder="Ajouter un commentaire technique (ex : antenne redémarrée, câble remplacé…)"
+                            rows={3}
+                            style={{ resize: 'vertical' }}
                           />
-                          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <div className="ip-comment-actions">
                             <select
-                              className="admin-input"
-                              value={newCommentEtat}
-                              onChange={e => setNewCommentEtat(e.target.value)}
-                              style={{ width: 160 }}
+                              className="form-select ip-etat-select"
+                              value={newEtat}
+                              onChange={e => setNewEtat(e.target.value)}
                             >
                               <option value="à_régler">⏳ À régler</option>
                               <option value="en_cours">⚙ En cours</option>

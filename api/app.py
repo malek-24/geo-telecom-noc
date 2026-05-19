@@ -12,7 +12,8 @@ from routes.ia               import ia_bp
 from routes.incidents_routes import incidents_bp
 from routes.reports_routes   import reports_bp
 from routes.dashboard_routes import admin_bp
-from routes.iot_routes       import iot_bp          # ← IoT ESP32
+from routes.iot_routes       import iot_bp
+from routes.chat_routes      import chat_bp   # ← Chat privé
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -24,7 +25,8 @@ app.register_blueprint(ia_bp)
 app.register_blueprint(incidents_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(admin_bp)
-app.register_blueprint(iot_bp)                       # ← IoT ESP32
+app.register_blueprint(iot_bp)
+app.register_blueprint(chat_bp)              # ← Chat privé
 
 # ── Healthcheck (pour Docker) ─────────────────────────────────────
 @app.route("/health", methods=["GET"])

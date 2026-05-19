@@ -1,0 +1,399 @@
+/* IncidentsPage.css — Design simple et clair — Licence 3 */
+
+/* ── Shell principal ── */
+.ip-shell {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1200px;
+}
+
+/* ── En-tête ── */
+.ip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ip-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+}
+
+.ip-subtitle {
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  margin: 5px 0 0;
+}
+
+/* ── Statistiques ── */
+.ip-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.ip-stat {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow-sm);
+  border-top: 4px solid transparent;
+}
+
+.ip-stat--blue   { border-top-color: #2563eb; }
+.ip-stat--orange { border-top-color: #d97706; }
+.ip-stat--green  { border-top-color: #16a34a; }
+.ip-stat--red    { border-top-color: #dc2626; }
+
+.ip-stat-num {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+
+.ip-stat--blue   .ip-stat-num { color: #2563eb; }
+.ip-stat--orange .ip-stat-num { color: #d97706; }
+.ip-stat--green  .ip-stat-num { color: #16a34a; }
+.ip-stat--red    .ip-stat-num { color: #dc2626; }
+
+.ip-stat-lbl {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Filtres ── */
+.ip-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ip-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.ip-filter-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ip-filter-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.ip-filter-count {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 1px 8px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.ip-filter-btn:not(.active) .ip-filter-count {
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
+
+/* ── Liste ── */
+.ip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Carte incident ── */
+.ip-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  border-left: 5px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.18s;
+}
+
+.ip-card:hover { box-shadow: var(--shadow-md); }
+
+.ip-card--critical { border-left-color: #dc2626; }
+.ip-card--warning  { border-left-color: #d97706; }
+.ip-card--resolved { border-left-color: #16a34a; opacity: 0.75; }
+
+.ip-card-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ip-card-info { flex: 1; min-width: 0; }
+
+.ip-card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ip-card-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.ip-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Badges ── */
+.ip-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.ip-badge--red    { background: #fff1f2; color: #dc2626; border-color: #fecaca; }
+.ip-badge--orange { background: #fffbeb; color: #d97706; border-color: #fde68a; }
+.ip-badge--green  { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+.ip-badge--gray   { background: #f8fafc; color: var(--text-muted); border-color: var(--border); }
+
+.ip-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+
+/* ── Détails ── */
+.ip-detail {
+  padding: 18px 22px;
+  border-top: 1px solid var(--border);
+  background: #fafbfc;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Infos générales */
+.ip-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.ip-info-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ip-info-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.ip-info-value {
+  font-size: 0.86rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* Métriques */
+.ip-metrics { display: flex; flex-direction: column; gap: 8px; }
+
+.ip-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.ip-metrics-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ip-metric-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+}
+
+.ip-metric-icon { color: #2563eb; display: flex; }
+.ip-metric-key  { color: #64748b; font-weight: 500; }
+.ip-metric-val  { color: #1d4ed8; font-weight: 800; margin-left: 2px; }
+
+/* Résoudre */
+.ip-resolve-btn { align-self: flex-start; }
+
+/* Commentaires */
+.ip-comments { display: flex; flex-direction: column; gap: 12px; }
+
+.ip-comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.ip-no-comment {
+  font-size: 0.84rem;
+  color: var(--text-light);
+  font-style: italic;
+  margin: 0;
+}
+
+.ip-comment {
+  background: var(--surface);
+  border-left: 4px solid var(--warning);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+}
+
+.ip-comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.ip-comment-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ip-role-tag {
+  border-radius: 20px;
+  font-size: 0.68rem;
+  padding: 1px 8px;
+  font-weight: 700;
+}
+
+.ip-comment-date {
+  font-size: 0.72rem;
+  color: var(--text-light);
+}
+
+.ip-comment-text {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.6;
+  margin: 0 0 5px;
+}
+
+.ip-comment-etat {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* Formulaire commentaire */
+.ip-comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ip-comment-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ip-etat-select { width: auto; min-width: 160px; }
+
+/* Vide */
+.ip-empty {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 60px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.ip-empty p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .ip-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .ip-info-grid { grid-template-columns: 1fr; }
+  .ip-card-right { flex-wrap: wrap; }
+}
