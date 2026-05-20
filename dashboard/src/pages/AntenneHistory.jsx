@@ -371,7 +371,7 @@ export default function AntennaHistoryPage() {
           {/* ── INCIDENTS ── */}
           <div className="hist-incidents-card">
             <h2 className="hist-section-title">
-              <AlertTriangle size={16} color="#d97706" /> Historique des incidents
+              <AlertTriangle size={16} color="#d97706" /> Historique des incidents ({incidents.length})
             </h2>
             {incidents.length === 0 ? (
               <div className="hist-empty">
@@ -381,18 +381,14 @@ export default function AntennaHistoryPage() {
             ) : (
               <div className="hist-incidents-list">
                 {incidents.map((inc, idx) => {
-                  const sev = inc.severity || inc.type || 'info';
-                  const sevColor = sev === 'critique' ? '#dc2626' : sev === 'alerte' ? '#d97706' : '#2563eb';
+                  const isCrit   = inc.criticite === 'critical';
+                  const dotColor = isCrit ? '#dc2626' : '#d97706';
                   return (
                     <div key={idx} className="hist-incident-row">
-                      <div className="hist-incident-dot" style={{ background: sevColor }} />
+                      <div className="hist-incident-dot" style={{ background: dotColor }} />
                       <div className="hist-incident-body">
-                        <div className="hist-incident-desc">{inc.description || inc.type || 'Incident détecté'}</div>
-                        <div className="hist-incident-meta">
-                          <span style={{ color: sevColor, fontWeight: 600, fontSize: '0.75rem' }}>{sev}</span>
-                          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>
-                            {fmt(inc.date_debut || inc.created_at)}
-                          </span>
+                        <div className="hist-incident-title">
+                          {inc.description || inc.titre || 'Anomalie détectée par Isolation Forest'}
                         </div>
                       </div>
                     </div>
