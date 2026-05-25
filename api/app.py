@@ -18,6 +18,28 @@ from routes.chat_routes      import chat_bp   # ← Chat privé
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
 
+# Au démarrage : 121 antennes Normal, 0 incident (nettoyage démo)
+def _bootstrap_au_demarrage():
+    import time
+    for tentative in range(1, 16):
+        try:
+            from database.connection import connecter_base_de_donnees
+            from ia.prediction import bootstrap_reseau_normal
+
+            conn = connecter_base_de_donnees()
+            cur  = conn.cursor()
+            cur.close()
+            if os.getenv("NOC_STARTUP_RESET", "1") == "1":
+                bootstrap_reseau_normal(conn)
+            conn.close()
+            return
+        except Exception as e:
+            print(f"[BOOTSTRAP] Tentative {tentative}/15 — {e}")
+            time.sleep(2)
+
+
+_bootstrap_au_demarrage()
+
 # ── Blueprints ────────────────────────────────────────────────────
 app.register_blueprint(auth_bp)
 app.register_blueprint(network_bp)

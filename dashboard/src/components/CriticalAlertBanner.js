@@ -9,8 +9,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
-
-const POLL_INTERVAL = 10000; // 10 secondes (temps réel)
+import { DATA_REFRESH_MS } from '../dataRefreshMs';
 
 const ROLE_COLORS = {
   critique: { bg: '#fef2f2', border: '#dc2626', text: '#dc2626', badgeBg: '#dc2626' },
@@ -56,7 +55,7 @@ export default function CriticalAlertBanner() {
 
   useEffect(() => {
     fetchCritical();
-    const id = setInterval(fetchCritical, POLL_INTERVAL);
+    const id = setInterval(fetchCritical, DATA_REFRESH_MS);
     return () => clearInterval(id);
   }, [fetchCritical]);
 

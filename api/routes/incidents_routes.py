@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify, g
 from database.connection import connecter_base_de_donnees, rows_to_dicts
 from utils.globals import ADMIN_LOGS
 from auth.decorators import token_required, role_required
-from ia.prediction import run_ai_prediction
+from ia.prediction import finalize_incident_resolution
 
 
 incidents_bp = Blueprint('incidents_bp', __name__)
@@ -99,25 +99,17 @@ def incident_details(incident_id):
 @incidents_bp.route("/incidents/<int:incident_id>/resolve", methods=["POST", "PUT"])
 @token_required
 def resolve_incident(incident_id):
-    """Marque un incident comme résolu et relance l'analyse IA."""
+    """
+    Marque l'incident résolu puis valide via Isolation Forest.
+    Recrée un incident si l'anomalie persiste. Historique des mesures conservé.
+    """
     try:
-        conn = connecter_base_de_donnees()
-        cur  = conn.cursor()
-        cur.execute("""
-            UPDATE incidents
-            SET statut = 'resolu', date_resolution = NOW()
-            WHERE id = %s
-        """, (incident_id,))
-        conn.commit()
-        updated = cur.rowcount
-        cur.close(); conn.close()
-
-        if updated == 0:
-            return jsonify({"error": "Incident introuvable"}), 404
-
-        # Relancer l'IA pour mettre à jour le statut de l'antenne
-        run_ai_prediction()
-        return jsonify({"success": True, "id": incident_id, "statut": "resolu"})
+        result = finalize_incident_resolution(incident_id)
+        if result.get("error") == "Incident introuvable":
+            return jsonify(result), 404
+        if not result.get("success"):
+            return jsonify(result), 500
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -182,11 +174,17 @@ def post_commentaire(incident_id):
         conn.commit()
         new_id = cur.fetchone()[0]
 
-        # Si marqué résolu via le commentaire
+        # Si marqué résolu via le commentaire → validation IA avant clôture
         if etat_resolution in ('réglé', 'resolu'):
-            cur.execute("UPDATE incidents SET statut = 'resolu', date_resolution = NOW() WHERE id = %s", (incident_id,))
             conn.commit()
-            run_ai_prediction()
+            cur.close(); conn.close()
+            resolution = finalize_incident_resolution(incident_id)
+            return jsonify({
+                "success": True,
+                "id": new_id,
+                "statut_validation": statut_validation,
+                "resolution": resolution,
+            })
 
         cur.close(); conn.close()
         return jsonify({"success": True, "id": new_id, "statut_validation": statut_validation})
@@ -213,11 +211,12 @@ def changer_etat_resolution(comment_id):
             RETURNING incident_id
         """, (nouvel_etat, comment_id))
         row = cur.fetchone()
-        if row and nouvel_etat in ('réglé', 'resolu'):
-            cur.execute("UPDATE incidents SET statut = 'resolu', date_resolution = NOW() WHERE id = %s", (row[0],))
-            run_ai_prediction()
+        incident_id = row[0] if row else None
         conn.commit()
         cur.close(); conn.close()
+        if row and nouvel_etat in ('réglé', 'resolu'):
+            resolution = finalize_incident_resolution(incident_id)
+            return jsonify({"success": True, "resolution": resolution})
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -273,8 +272,8 @@ def list_alerts():
         conn = connecter_base_de_donnees()
         df   = pd.read_sql("""
             SELECT id, nom, zone, type,
-                   temperature, cpu, ram, signal, debit,
-                   latence, packet_loss, disponibilite,
+                   temperature, cpu, signal,
+                   latence, disponibilite,
                    statut, risk_score,
                    date_mesure::text
             FROM antennes_statut

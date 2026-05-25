@@ -13,7 +13,7 @@ ADMIN_LOGS = [
 
 SYSTEM_SETTINGS = {
     "update_freq": 5,
-    "temp_threshold": 75,
+    "temp_threshold": 45,   # Seuil critique DHT11 : 45°C (max physique = 50°C)
     "cpu_threshold": 85,
     "ia_active": True,
     "alerts_active": True,

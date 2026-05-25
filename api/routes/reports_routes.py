@@ -237,8 +237,9 @@ def rapport_antennes_excel():
 
         conn = connecter_base_de_donnees()
         df   = pd.read_sql("""
-            SELECT id, nom, zone, type, temperature, cpu, ram, signal,
-                   latence, packet_loss, disponibilite, debit, statut, date_mesure::text
+            SELECT id, nom, zone, type, temperature, cpu, signal,
+                   latence, disponibilite, statut, risk_score,
+                   date_mesure::text
             FROM antennes_statut
             ORDER BY id
         """, conn)
@@ -248,9 +249,10 @@ def rapport_antennes_excel():
         ws = wb.active
         ws.title = "Antennes Mahdia"
         headers = [
-            "ID", "Nom", "Zone", "Type", "Temp (°C)", "CPU (%)", "RAM (%)",
-            "Signal (dBm)", "Latence (ms)", "Perte Paquets (%)",
-            "Dispo (%)", "Débit (Mbps)", "Statut", "Date Mesure"
+            "ID", "Nom", "Zone", "Type",
+            "Temp (°C)", "CPU (%)", "Signal (dBm)",
+            "Latence (ms)", "Dispo (%)", "Statut",
+            "Score IA", "Date Mesure"
         ]
         header_fill = PatternFill(start_color="2563EB", end_color="2563EB", fill_type="solid")
         for col, h in enumerate(headers, 1):
@@ -285,7 +287,7 @@ def export_csv_data():
         else:
             df = pd.read_sql("""
                 SELECT id, nom, zone, type, temperature, cpu, signal,
-                       packet_loss, disponibilite, statut
+                       latence, disponibilite, statut, risk_score
                 FROM antennes_statut
             """, conn)
         conn.close()

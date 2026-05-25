@@ -2,9 +2,12 @@
 generate_antennes.py  —  Script de peuplement initial
 Plateforme NOC Tunisie Télécom — Gouvernorat de Mahdia
 
-IMPORTANT : Génère exactement 120 antennes fixes réparties
-dans 14 zones géographiques réelles de Mahdia.
-Ne jamais modifier les coordonnées sans régénérer la BD.
+Génère exactement 120 antennes simulées + 1 antenne IoT réelle (ISET Mahdia).
+Toutes les antennes démarrent avec des mesures normales :
+  Température ≈ 28°C, CPU ≈ 40%, Signal ≈ -65 dBm, Latence ≈ 15ms, Dispo ≈ 99%
+
+L'Isolation Forest apprend ces valeurs comme comportement normal
+et détecte les écarts sans aucune règle codée en dur.
 """
 
 import random
@@ -36,6 +39,26 @@ ZONES = [
 # Total : 12+9+8+9+9+8+8+8+9+7+8+9+8+8 = 120 ✔
 
 TYPES_ANTENNE = ["4G LTE", "4G+", "5G", "3G", "Macro", "Micro"]
+
+# Antenne IoT réelle — Arduino Uno + DHT11
+ISET_MAHDIA = {
+    "nom":       "ISET Mahdia",
+    "zone":      "Mahdia Nord",   # zone géographiquement proche
+    "type":      "4G",
+    "latitude":  35.522473,
+    "longitude": 11.030388,
+    "operateur": "Tunisie Telecom",
+}
+
+# Mesure initiale pour ISET Mahdia (comportement normal de la zone)
+# La température réelle viendra du capteur DHT11 via serial_bridge.py
+ISET_MAHDIA_MESURE = {
+    "temperature":   28.0,    # valeur de démarrage — écrasée par le DHT11
+    "cpu":           38.0,    # simulé (profil Mahdia Nord)
+    "signal":        -61.0,   # simulé (bon signal en zone Nord)
+    "latence":       12.0,    # simulé (faible latence)
+    "disponibilite": 99.5,    # simulé
+}
 
 
 def longitude_max_pour_latitude(lat):
@@ -75,7 +98,8 @@ def generer_point(lat_centre, lon_centre, rayon_km):
 
 def inserer_antennes():
     """
-    Connexion PostgreSQL et insertion de 120 antennes fixes.
+    Connexion PostgreSQL et insertion de 120 antennes simulées + ISET Mahdia.
+    Toutes les antennes ont des mesures initiales normales.
     """
     print("[DÉMARRAGE] Connexion à la base de données...")
     conn = psycopg2.connect(
@@ -84,17 +108,34 @@ def inserer_antennes():
     )
     cur = conn.cursor()
 
-    print("[INFO] Suppression des anciennes données...")
-    cur.execute("DELETE FROM mesures;")
-    cur.execute("DELETE FROM antennes;")
+    cur.execute("SELECT COUNT(*) FROM antennes")
+    nb_existantes = cur.fetchone()[0]
+    if nb_existantes > 0:
+        print(f"[INFO] {nb_existantes} antennes déjà en base — historique des mesures conservé.")
+        cur.close()
+        conn.close()
+        return
 
-    print("[INFO] Insertion de 120 antennes fixes...")
+    # Initialisation uniquement si la base est vide (jamais de DELETE sur mesures)
+    if nb_existantes > 0:
+        print(f"[INFO] {nb_existantes} antenne(s) présentes — ajout sans effacer l'historique.")
+    else:
+        print("[INFO] Base vide — insertion initiale des 121 antennes.")
+
+    print("[INFO] Insertion de 120 antennes simulées...")
     ant_id = 1
 
     for (nom_zone, lat_c, lon_c, rayon, nb) in ZONES:
         for i in range(nb):
             lat, lon = generer_point(lat_c, lon_c, rayon)
             type_ant = TYPES_ANTENNE[(ant_id - 1) % len(TYPES_ANTENNE)]
+
+            # Valeurs de base centrées autour des cibles normales
+            base_cpu     = 30 + (ant_id % 20)          # 30–50%
+            base_temp    = 24 + (ant_id % 8) + (base_cpu * 0.02)  # 24–32°C
+            base_latence = 10 + (ant_id % 12)          # 10–22 ms
+            base_dispo   = 98.5 + ((ant_id % 10) / 20.0)  # 98.5–99.5%
+            signal_dbm   = -75 + (ant_id % 20)         # -75 à -55 dBm
 
             cur.execute("""
                 INSERT INTO antennes
@@ -111,16 +152,70 @@ def inserer_antennes():
                 "Tunisie Telecom",
                 lon, lat
             ))
+
+            # Insérer 6 mesures initiales normales pour chaque antenne
+            for k in range(1, 7):
+                cur.execute("""
+                    INSERT INTO mesures
+                        (antenne_id, temperature, cpu, signal, latence, disponibilite,
+                         statut, risk_score, date_mesure)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'normal', 85.0,
+                            NOW() - (%s * INTERVAL '30 minutes'))
+                """, (
+                    ant_id,
+                    round(min(45.0, max(15.0, base_temp    + (k - 4) * 0.2)), 2),
+                    round(max(10.0, min(80.0, base_cpu     + (k - 4) * 0.5)), 2),
+                    round(signal_dbm + (k % 3) * 0.3,                         2),
+                    round(max(5.0,            base_latence + (k - 4) * 0.4),  2),
+                    round(min(100.0, max(97.0, base_dispo  - (k % 2) * 0.03)), 2),
+                    6 - k,
+                ))
+
             ant_id += 1
+
+    # ── Insertion de l'antenne IoT réelle : ISET Mahdia ──
+    print("[INFO] Insertion de l'antenne IoT réelle : ISET Mahdia (ID=121)...")
+    lat_iset = ISET_MAHDIA["latitude"]
+    lon_iset = ISET_MAHDIA["longitude"]
+    cur.execute("""
+        INSERT INTO antennes
+            (id, nom, zone, type, latitude, longitude, operateur, statut, date_installation, geom)
+        VALUES (121, %s, %s, %s, %s, %s, %s, 'normal', CURRENT_DATE,
+                ST_SetSRID(ST_MakePoint(%s, %s), 4326))
+        ON CONFLICT (id) DO NOTHING
+    """, (
+        ISET_MAHDIA["nom"], ISET_MAHDIA["zone"], ISET_MAHDIA["type"],
+        lat_iset, lon_iset, ISET_MAHDIA["operateur"],
+        lon_iset, lat_iset
+    ))
+
+    # Mesure initiale normale pour ISET Mahdia
+    # (la température réelle du DHT11 prendra le relais via serial_bridge.py)
+    cur.execute("""
+        INSERT INTO mesures
+            (antenne_id, temperature, cpu, signal, latence, disponibilite,
+             statut, risk_score, date_mesure)
+        VALUES (121, %s, %s, %s, %s, %s, 'normal', 85.0, NOW())
+    """, (
+        ISET_MAHDIA_MESURE["temperature"],
+        ISET_MAHDIA_MESURE["cpu"],
+        ISET_MAHDIA_MESURE["signal"],
+        ISET_MAHDIA_MESURE["latence"],
+        ISET_MAHDIA_MESURE["disponibilite"],
+    ))
 
     conn.commit()
     cur.close()
     conn.close()
 
     total = ant_id - 1
-    print(f"[OK] {total} antennes insérées dans {len(ZONES)} zones.")
+    print(f"[OK] {total} antennes simulées + 1 antenne IoT (ISET Mahdia) insérées.")
+    print(f"[OK] Toutes les antennes démarrent en état NORMAL.")
+    print(f"[OK] Profil de démarrage : Temp≈{ISET_MAHDIA_MESURE['temperature']}°C | "
+          f"CPU≈{ISET_MAHDIA_MESURE['cpu']}% | Signal≈{ISET_MAHDIA_MESURE['signal']}dBm | "
+          f"Latence≈{ISET_MAHDIA_MESURE['latence']}ms | Dispo≈{ISET_MAHDIA_MESURE['disponibilite']}%")
     if total != 120:
-        print(f"[AVERTISSEMENT] {total} antennes au lieu de 120 — vérifier les zones.")
+        print(f"[AVERTISSEMENT] {total} antennes simulées au lieu de 120 — vérifier les zones.")
 
 
 if __name__ == "__main__":

@@ -397,3 +397,35 @@
   .ip-info-grid { grid-template-columns: 1fr; }
   .ip-card-right { flex-wrap: wrap; }
 }
+
+/* ── Animations Toast & Résolution ── */
+@keyframes slideInRight {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+@keyframes resolvedPulse {
+  0%   { box-shadow: 0 0 0 0   rgba(22, 163, 74, 0.35); }
+  60%  { box-shadow: 0 0 0 10px rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0   rgba(22, 163, 74, 0); }
+}
+
+/* Carte incident résolue — transition douce */
+.ip-card--resolved {
+  border-left-color: #16a34a;
+  opacity: 0.82;
+  transition: opacity 0.4s ease, border-left-color 0.4s ease;
+}
+
+/* Effet visuel quand l'optimistic update applique 'resolu' */
+.ip-card--resolved-new {
+  animation: resolvedPulse 0.8s ease-out;
+  border-left-color: #16a34a;
+  opacity: 0.82;
+}
+
+/* Bouton résoudre — état désactivé pendant la requête */
+.ip-resolve-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

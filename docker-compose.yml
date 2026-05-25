@@ -42,10 +42,12 @@ services:
       DATABASE_URL:     postgresql://postgres:1234@postgres:5432/antennes_mahdia
       FLASK_SECRET_KEY: pfe-geo-telecom-secret-2026
       FLASK_ENV:        production
+      NOC_STARTUP_RESET: "1"
       AUTH_USER_ADMIN:  admin
       AUTH_PASS_ADMIN:  admin123
       AUTH_USER_MOD:    moderateur
       AUTH_PASS_MOD:    mod123
+      IOT_API_KEY:      arduino-noc-secret-2026
     depends_on:
       postgres:
         condition: service_healthy

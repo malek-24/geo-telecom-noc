@@ -12,3 +12,5 @@ werkzeug==3.0.3           # Sécurité (hash des mots de passe)
 reportlab==4.2.0          # Génération de rapports PDF
 openpyxl==3.1.5           # Export Excel (.xlsx)
 requests==2.32.3          # Client HTTP (configuration GeoServer)
+joblib==1.4.2             # Sérialisation du modèle Isolation Forest
+scipy==1.13.0             # Calculs statistiques (z-scores, percentiles)

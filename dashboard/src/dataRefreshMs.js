@@ -7,4 +7,5 @@
  * Pour changer la fréquence, modifier uniquement ce fichier.
  */
 
-export const DATA_REFRESH_MS = 10000; // 10 secondes
+export const DATA_REFRESH_MS = 1000; // 1 secondes (temps réel)
+

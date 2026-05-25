@@ -33,8 +33,8 @@ def liste_antennes():
                 a.id, a.nom, a.zone, a.type,
                 a.latitude, a.longitude,
                 a.date_installation::text,
-                COALESCE(m.temperature,   35.0) AS temperature,
-                COALESCE(m.cpu,           20.0) AS cpu,
+                COALESCE(m.temperature,   28.0) AS temperature,
+                COALESCE(m.cpu,           40.0) AS cpu,
                 COALESCE(m.signal,       -65.0) AS signal,
                 COALESCE(m.signal,       -65.0) AS signal_strength,
                 COALESCE(m.latence,       15.0) AS latence,
@@ -81,8 +81,8 @@ def get_antenne(ant_id):
                 a.id, a.nom, a.zone, a.type, a.operateur,
                 a.latitude, a.longitude,
                 a.date_installation::text,
-                COALESCE(m.temperature,   35.0) AS temperature,
-                COALESCE(m.cpu,           20.0) AS cpu,
+                COALESCE(m.temperature,   28.0) AS temperature,
+                COALESCE(m.cpu,           40.0) AS cpu,
                 COALESCE(m.signal,       -65.0) AS signal,
                 COALESCE(m.latence,       15.0) AS latence,
                 COALESCE(m.disponibilite, 99.0) AS disponibilite,
@@ -114,7 +114,7 @@ def get_antenne(ant_id):
 @token_required
 def get_antenne_mesures(ant_id):
     """Retourne l'historique chronologique des mesures d'une antenne."""
-    limit = request.args.get("limit", 24, type=int)
+    limit = request.args.get("limit", 120, type=int)
     try:
         conn = connecter_base_de_donnees()
         df   = pd.read_sql("""
@@ -191,18 +191,18 @@ def stats_globales():
         cur.close(); conn.close()
 
         return jsonify({
-            "total_antennes":       total,
-            "en_ligne":             by_status.get("normal",      0),
-            "alertes":              by_status.get("alerte",      0),
-            "critique":             by_status.get("critique",    0),
-            "maintenance":          by_status.get("maintenance", 0),
+            "total_antennes":        total,
+            "en_ligne":              by_status.get("normal",      0),
+            "alertes":               by_status.get("alerte",      0),
+            "critique":              by_status.get("critique",    0),
+            "maintenance":           by_status.get("maintenance", 0),
             "disponibilite_globale": round(float(avg[0] or 100), 2),
-            "latence_moyenne":      round(float(avg[1] or 0),   2),
-            "cpu_moyen":            round(float(avg[2] or 0),   2),
-            "temperature_moyenne":  round(float(avg[3] or 0),   2),
-            "signal_moyen":         round(float(avg[4] or -65), 2),
-            "incidents_actifs":     incidents_actifs,
-            "antennes_actives":     total - by_status.get("maintenance", 0),
+            "latence_moyenne":       round(float(avg[1] or 0),   2),
+            "cpu_moyen":             round(float(avg[2] or 0),   2),
+            "temperature_moyenne":   round(float(avg[3] or 0),   2),
+            "signal_moyen":          round(float(avg[4] or -65), 2),
+            "incidents_actifs":      incidents_actifs,
+            "antennes_actives":      total - by_status.get("maintenance", 0),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -243,23 +243,25 @@ def get_dashboard_summary():
         cur.close(); conn.close()
 
         ai_risk_score = 0.0
+        ai_confidence = 100.0
         if total_antennes > 0:
             ai_risk_score = min(100.0, ((nb_critique * 3 + nb_alerte) / total_antennes) * 100)
+            ai_confidence = (nb_normal / total_antennes) * 100
 
         return jsonify({
-            "total_antennes":    total_antennes,
-            "en_ligne":          nb_normal,
-            "alertes":           nb_alerte,
-            "critique":          nb_critique,
-            "availability":      round(float(avg[0] or 100), 2),
-            "cpu_moyen":         round(float(avg[1] or 0),   2),
-            "latence_moyenne":   round(float(avg[2] or 0),   2),
-            "incidents_actifs":  incidents_actifs,
-            "active_alerts":     incidents_alertes,
-            "incidents":         incidents_critiques,
-            "anomalies":         nb_critique + nb_alerte,
-            "ai_risk_score":     round(ai_risk_score, 1),
-            "ai_confidence":     96.4,
+            "total_antennes":   total_antennes,
+            "en_ligne":         nb_normal,
+            "alertes":          nb_alerte,
+            "critique":         nb_critique,
+            "availability":     round(float(avg[0] or 100), 2),
+            "cpu_moyen":        round(float(avg[1] or 0),   2),
+            "latence_moyenne":  round(float(avg[2] or 0),   2),
+            "incidents_actifs": incidents_actifs,
+            "active_alerts":    incidents_alertes,
+            "incidents":        incidents_critiques,
+            "anomalies":        nb_critique + nb_alerte,
+            "ai_risk_score":    round(ai_risk_score, 1),
+            "ai_confidence":    round(ai_confidence, 1),
         })
     except Exception as e:
         print(f"[ERREUR] GET /dashboard/summary : {e}")
@@ -299,8 +301,8 @@ def get_dashboard_history():
         for r in rows:
             nb_a = int(r.get("alertes",   0) or 0)
             nb_c = int(r.get("critiques", 0) or 0)
-            r["risque"]   = round(min(100, (nb_a + nb_c) * 2.5), 1)
-            r["alertes"]  = nb_a
+            r["risque"]    = round(min(100, (nb_a + nb_c) * 2.5), 1)
+            r["alertes"]   = nb_a
             r["critiques"] = nb_c
 
         return jsonify(rows)
@@ -315,7 +317,7 @@ def get_dashboard_history():
 @network_bp.route("/antennes", methods=["POST"])
 @role_required('administrateur', 'ingenieur_reseau')
 def creer_antenne():
-    """Crée une nouvelle antenne avec une mesure initiale automatique."""
+    """Crée une nouvelle antenne avec une mesure initiale normale."""
     data     = request.get_json() or {}
     required = ['nom', 'zone', 'type', 'latitude', 'longitude']
     for field in required:
@@ -344,11 +346,11 @@ def creer_antenne():
         ))
         new_id = cur.fetchone()[0]
 
-        # Mesure initiale
+        # Mesure initiale (valeurs normales)
         cur.execute("""
             INSERT INTO mesures
                 (antenne_id, temperature, cpu, signal, latence, disponibilite, statut, date_mesure)
-            VALUES (%s, 35.0, 20.0, -65.0, 15.0, 99.0, %s, NOW())
+            VALUES (%s, 28.0, 40.0, -65.0, 15.0, 99.0, %s, NOW())
         """, (new_id, statut_initial))
 
         conn.commit(); cur.close(); conn.close()
@@ -434,3 +436,129 @@ def supprimer_antenne(ant_id):
         return jsonify({"success": True, "message": f"Antenne {ant_id} supprimée."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ════════════════════════════════════════════════════════════════
+#  MODIFICATION MANUELLE DES MÉTRIQUES (ADMIN — DÉMONSTRATION)
+# ════════════════════════════════════════════════════════════════
+
+@network_bp.route("/antennes/<int:ant_id>/metriques", methods=["PUT"])
+@role_required('administrateur')
+def modifier_metriques_antenne(ant_id):
+    """
+    [ADMIN] Modifie manuellement les métriques d'une antenne.
+
+    Scénario de démonstration jury :
+      1. L'admin saisit de nouvelles valeurs (ex: CPU=95%, Signal=-110dBm)
+      2. Une nouvelle mesure est insérée en base immédiatement
+      3. L'IA Isolation Forest analyse UNIQUEMENT cette antenne
+         (les autres antennes ne sont pas recalculées)
+      4. Le nouveau statut est retourné immédiatement
+
+    Règle : force_no_retrain=True
+      → Le modèle IA ne se réentraîne PAS lors d'une modification admin.
+      → Il prédit uniquement, sur le modèle déjà en mémoire.
+
+    Body JSON attendu :
+    {
+        "temperature":   95.0,
+        "cpu":           95.0,
+        "signal":       -110.0,
+        "latence":       250.0,
+        "disponibilite": 70.0
+    }
+    """
+    data = request.get_json() or {}
+
+    metriques_requises = ["temperature", "cpu", "signal", "latence", "disponibilite"]
+    for champ in metriques_requises:
+        if champ not in data:
+            return jsonify({"error": f"Champ manquant : {champ}"}), 400
+
+    try:
+        temperature   = float(data["temperature"])
+        cpu           = float(data["cpu"])
+        signal        = float(data["signal"])
+        latence       = float(data["latence"])
+        disponibilite = float(data["disponibilite"])
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": f"Valeur invalide : {e}"}), 400
+
+    try:
+        conn = connecter_base_de_donnees()
+        cur  = conn.cursor()
+
+        # Vérifier que l'antenne existe
+        cur.execute("SELECT id, nom FROM antennes WHERE id = %s", (ant_id,))
+        antenne = cur.fetchone()
+        if not antenne:
+            cur.close(); conn.close()
+            return jsonify({"error": f"Antenne ID {ant_id} introuvable"}), 404
+
+        # Insérer la nouvelle mesure avec les valeurs de l'admin
+        cur.execute("""
+            INSERT INTO mesures
+                (antenne_id, temperature, cpu, signal, latence, disponibilite,
+                 statut, date_mesure)
+            VALUES (%s, %s, %s, %s, %s, %s, 'analyse_ia_en_cours', NOW())
+        """, (
+            ant_id,
+            round(temperature, 1), round(cpu, 1), round(signal, 1),
+            round(latence, 1), round(disponibilite, 1),
+        ))
+        conn.commit()
+        cur.close(); conn.close()
+
+        # Journaliser l'action admin
+        ADMIN_LOGS.insert(0, {
+            "id":          int(time.time()),
+            "heure":       datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "utilisateur": g.current_user["username"],
+            "action":      (
+                f"Modification métriques {antenne[1]} (ID={ant_id}) — "
+                f"Temp={temperature}°C CPU={cpu}% Signal={signal}dBm "
+                f"Latence={latence}ms Dispo={disponibilite}%"
+            ),
+            "statut": "Succès"
+        })
+
+    except Exception as e:
+        print(f"[ERREUR] PUT /antennes/{ant_id}/metriques : {e}")
+        return jsonify({"error": str(e)}), 500
+
+    # ── Analyse IA ciblée sur cette antenne uniquement ──────────────
+    # force_no_retrain=True : le modèle NE SE RÉENTRAÎNE PAS
+    # Il prédit uniquement, sur le modèle déjà en mémoire
+    try:
+        from ia.prediction import run_ai_prediction
+
+        # Appel direct Python (plus rapide et plus fiable qu'un appel HTTP)
+        response = run_ai_prediction(antenne_id=ant_id, force_no_retrain=True)
+
+        # Extraire le résultat JSON
+        data_ia = response.get_json()
+        if isinstance(data_ia, list) and data_ia:
+            r = data_ia[0]  # Résultat de cette antenne uniquement
+            return jsonify({
+                "success":    True,
+                "message":    f"Métriques mises à jour pour {antenne[1]}. IA recalculée.",
+                "antenne_id": ant_id,
+                "statut":     r.get("statut",     "inconnu"),
+                "risk_score": r.get("risk_score", 0),
+            })
+
+        # Cas rare : résultat vide (ne devrait pas arriver)
+        return jsonify({
+            "success":    True,
+            "message":    f"Métriques mises à jour pour {antenne[1]}. IA déclenchée.",
+            "antenne_id": ant_id,
+        })
+
+    except Exception as e:
+        # L'insertion a réussi même si l'IA n'a pas répondu
+        print(f"[IA ERREUR après modification admin] {e}")
+        return jsonify({
+            "success":    True,
+            "message":    f"Métriques mises à jour pour {antenne[1]}. IA déclenchée (en cours).",
+            "antenne_id": ant_id,
+        })

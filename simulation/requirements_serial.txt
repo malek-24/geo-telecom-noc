@@ -1,0 +1,4 @@
+# serial_bridge.py — dépendances Python
+# Installer avec : pip install -r requirements_serial.txt
+pyserial>=3.5
+requests>=2.28.0

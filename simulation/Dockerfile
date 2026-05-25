@@ -16,7 +16,7 @@ COPY generate_mesures.py .
 
 # Script de démarrage : seed les antennes puis lance la simulation
 COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 RUN pip install --no-cache-dir psycopg2-binary==2.9.9 schedule requests
 

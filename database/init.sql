@@ -39,7 +39,7 @@ CREATE TABLE antennes (
 CREATE TABLE mesures (
     id            SERIAL PRIMARY KEY,
     antenne_id    INTEGER      NOT NULL REFERENCES antennes(id) ON DELETE CASCADE,
-    temperature   NUMERIC(5,2) CHECK (temperature > 0),
+    temperature   NUMERIC(5,2) CHECK (temperature >= -10 AND temperature <= 80),
     cpu           NUMERIC(5,2) CHECK (cpu >= 0 AND cpu <= 100),
     signal        NUMERIC(5,2),           -- RSSI en dBm (ex: -75 dBm)
     latence       NUMERIC(8,2),           -- Latence en ms
@@ -96,9 +96,9 @@ SELECT DISTINCT ON (m.antenne_id)
     m.signal AS signal_strength,
     m.latence,
     m.disponibilite,
-    COALESCE(m.statut, 'en_attente') AS statut,
+    COALESCE(a.statut, 'normal')     AS statut,
     COALESCE(m.risk_score, 0)        AS risk_score,
-    CASE WHEN COALESCE(m.statut,'') = 'critique' THEN true ELSE false END AS anomalie,
+    CASE WHEN COALESCE(a.statut,'') = 'critique' THEN true ELSE false END AS anomalie,
     a.latitude,
     a.longitude,
     m.date_mesure
@@ -133,7 +133,7 @@ DECLARE
         ARRAY['El Jem',        '35.292', '10.711', '0.024', '13'],
         ARRAY['Mellouleche',   '35.176', '10.990', '0.018', '13'],
         ARRAY['Sidi Alouane',  '35.367', '10.931', '0.018', '13'],
-        ARRAY['Rejiche',       '35.471', '11.015', '0.014', '11']
+        ARRAY['Rejiche',       '35.471', '11.015', '0.014', '13']
     ];
     z TEXT[];
     i INTEGER := 1;
@@ -172,7 +172,38 @@ BEGIN
     END LOOP;
 END $$;
 
+-- ── SEED: Antenne IoT réelle — ISET Mahdia ──────────────────
+-- Antenne physique : Arduino Uno + DHT11
+-- Coordonnées GPS : 35.522473 N, 11.030388 E  (ISET Mahdia, Tunisie)
+-- Zone : Mahdia Nord (géographiquement la plus proche)
+-- ID attribué par PostgreSQL : 121 (après les 120 antennes simulées)
+-- IMPORTANT : si la base est recréée, vérifier l'ID avec :
+--   SELECT id FROM antennes WHERE nom = 'ISET Mahdia';
+INSERT INTO antennes (nom, zone, type, latitude, longitude, operateur, date_installation, geom)
+VALUES (
+    'ISET Mahdia',
+    'Mahdia Nord',
+    '4G',
+    35.522473,
+    11.030388,
+    'Tunisie Telecom',
+    CURRENT_DATE,
+    ST_SetSRID(ST_MakePoint(11.030388, 35.522473), 4326)
+);
+
+
 -- ── SEED: 6 mesures initiales par antenne (historique démo) ──
+-- OBJECTIF : toutes les antennes démarrent en état NORMAL.
+-- Valeurs centrées autour du comportement sain du réseau :
+--   Température  ≈ 28°C     (plage 24–32°C)
+--   CPU         ≈ 40%      (plage 30–50%)
+--   Signal      ≈ -65 dBm  (plage -75 à -55 dBm)
+--   Latence     ≈ 15 ms    (plage 10–22 ms)
+--   Disponibilité ≈ 99%    (plage 98.5–99.5%)
+--
+-- IMPORTANT : aucune anomalie artificielle injectée.
+-- Le modèle Isolation Forest apprend ce comportement normal et détecte
+-- les écarts par rapport à lui — sans règle codée en dur.
 DO $$
 DECLARE
     ant RECORD;
@@ -184,37 +215,50 @@ DECLARE
     signal_dbm  NUMERIC;
 BEGIN
     FOR ant IN SELECT id, type FROM antennes ORDER BY id LOOP
-        base_cpu     := 22 + (ant.id % 38);
-        base_temp    := 36 + (ant.id % 18) + base_cpu * 0.07;
-        base_latence := 10 + (ant.id % 24);
-        base_dispo   := 97.5 + ((ant.id % 20) / 40.0);
-        signal_dbm   := -85  + (ant.id % 32);
+        -- CPU centré autour de 40% (plage 30–50%)
+        base_cpu     := 30 + (ant.id % 20);
 
-        -- Anomalies réalistes sur des sites spécifiques
-        IF ant.id IN (17, 46, 88, 112) THEN
-            base_cpu     := base_cpu + 38;
-            base_temp    := base_temp + 20;
-            base_latence := base_latence + 48;
-            base_dispo   := 92.5;
-        ELSIF ant.id IN (29, 63, 104) THEN
-            base_cpu     := base_cpu + 18;
-            base_temp    := base_temp + 10;
-            base_latence := base_latence + 22;
-        END IF;
+        -- Température centrée autour de 28°C (plage 24–32°C)
+        -- Corrélation thermique légère avec le CPU (équipements qui chauffent)
+        base_temp    := 24 + (ant.id % 8) + (base_cpu * 0.02);
+
+        -- Latence centrée autour de 15 ms (plage 10–22 ms)
+        base_latence := 10 + (ant.id % 12);
+
+        -- Disponibilité centrée autour de 99% (plage 98.5–99.5%)
+        base_dispo   := 98.5 + ((ant.id % 10) / 20.0);
+
+        -- Signal RSSI centré autour de -65 dBm (plage -75 à -55 dBm)
+        signal_dbm   := -75 + (ant.id % 20);
+
+        -- Toutes les antennes : comportement normal, aucune anomalie injectée.
+        -- L'Isolation Forest découvrira les écarts réels par lui-même.
 
         FOR k IN 1..6 LOOP
             INSERT INTO mesures (antenne_id, temperature, cpu, signal, latence, disponibilite, statut, risk_score, date_mesure)
             VALUES (
                 ant.id,
-                ROUND((base_temp    + (k - 4) * 0.5) ::NUMERIC, 2),
-                ROUND((base_cpu     + (k - 4) * 0.8) ::NUMERIC, 2),
-                ROUND((signal_dbm   + (k % 3) * 0.5) ::NUMERIC, 2),
-                ROUND((base_latence + (k - 4) * 0.7) ::NUMERIC, 2),
-                ROUND((base_dispo   - (k % 2) * 0.05)::NUMERIC, 2),
-                NULL,
+                -- Progression douce sur les 6 mesures (évolution temporelle réaliste)
+                ROUND(LEAST(45.0, GREATEST(15.0, base_temp    + (k - 4) * 0.2))::NUMERIC, 2),
+                ROUND(GREATEST(10.0, LEAST(80.0,  base_cpu     + (k - 4) * 0.5))::NUMERIC, 2),
+                ROUND((signal_dbm   + (k % 3) * 0.3)::NUMERIC, 2),
+                ROUND(GREATEST(5.0,              base_latence + (k - 4) * 0.4)::NUMERIC,  2),
+                ROUND(LEAST(100.0, GREATEST(97.0, base_dispo   - (k % 2) * 0.03))::NUMERIC, 2),
+                'normal',
                 0,
                 NOW() - ((6 - k) * INTERVAL '30 minutes')
             );
         END LOOP;
     END LOOP;
 END $$;
+
+
+-- ── Mesure initiale pour l'antenne ISET Mahdia ───────────────
+-- Valeurs de départ correspondant au profil de la zone Hiboun
+-- La température réelle viendra de l'Arduino via serial_bridge.py
+-- Les autres métriques seront simulées avec transition douce
+INSERT INTO mesures (antenne_id, temperature, cpu, signal, latence, disponibilite, statut, risk_score, date_mesure)
+SELECT id, 28.0, 38.0, -61.0, 12.0, 99.5, 'normal', 0, NOW()
+FROM antennes
+WHERE nom = 'ISET Mahdia';
+

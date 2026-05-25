@@ -58,6 +58,7 @@ export default function Dashboard() {
   // Data fetch
   const fetchAll = useCallback(async () => {
     if (!token) return;
+    console.log("Refresh dashboard", new Date());
     const cfg = { headers: { Authorization: `Bearer ${token}` } };
     try {
       const [sRes, aRes, iRes, hRes] = await Promise.all([
@@ -114,9 +115,9 @@ export default function Dashboard() {
           {/* ── KPIs ── */}
           <div className="dashboard-kpi-grid">
             <KPICard
-              title="Sites Normaux"
+              title="SITES NORMAUX"
               value={s?.en_ligne ?? '—'}
-              subtitle={`sur ${s?.total_antennes ?? '—'} supervisés`}
+              subtitle={s ? `sur ${s.total_antennes} supervisés` : 'Chargement…'}
               icon={<RadioTower size={20} color="var(--accent)" />}
               iconBg="var(--accent-soft)"
             />
@@ -186,11 +187,11 @@ export default function Dashboard() {
           {/* ── GRAPHIQUE + INCIDENTS ── */}
           <div className="dashboard-bottom-row">
             <div className="panel">
-              <h3 className="panel-title"><Activity size={16} /> Évolution Trafic & CPU (7h30)</h3>
+              <h3 className="panel-title"><Activity size={16} /> Évolution CPU & Disponibilité (12h)</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={history}>
                   <defs>
-                    <linearGradient id="gDebit" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gDispo" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%"  stopColor="var(--success)" stopOpacity={0.25} />
                       <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
                     </linearGradient>
@@ -203,8 +204,8 @@ export default function Dashboard() {
                   <XAxis dataKey="time" stroke="var(--text-light)" fontSize={11} tickLine={false} />
                   <YAxis stroke="var(--text-light)" fontSize={11} tickLine={false} axisLine={false} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="debit" name="Débit (Mbps)" stroke="var(--success)" strokeWidth={2} fill="url(#gDebit)" />
-                  <Area type="monotone" dataKey="cpu"   name="CPU (%)"       stroke="var(--accent)"  strokeWidth={2} fill="url(#gCpu)" />
+                  <Area type="monotone" dataKey="disponibilite" name="Disponibilité (%)" stroke="var(--success)" strokeWidth={2} fill="url(#gDispo)" />
+                  <Area type="monotone" dataKey="cpu"           name="CPU (%)"           stroke="var(--accent)"  strokeWidth={2} fill="url(#gCpu)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

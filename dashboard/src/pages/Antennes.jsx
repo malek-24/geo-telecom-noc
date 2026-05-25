@@ -331,7 +331,13 @@ export default function EquipmentsPage() {
                         <td style={{ color: ant.cpu > 85 ? 'var(--danger)' : 'inherit', fontWeight: ant.cpu > 85 ? 700 : 400 }}>
                           {Number(ant.cpu || 0).toFixed(1)}
                         </td>
-                        <td style={{ color: ant.temperature > 80 ? 'var(--danger)' : 'inherit' }}>
+                        {/* Température : rouge > 45°C (critique DHT11), orange > 35°C (alerte), vert sinon */}
+                        <td style={{
+                          color: ant.temperature > 45 ? 'var(--danger)'
+                               : ant.temperature > 35 ? 'var(--warning)'
+                               : 'inherit',
+                          fontWeight: ant.temperature > 35 ? 700 : 400
+                        }}>
                           {Number(ant.temperature || 0).toFixed(1)}
                         </td>
                         <td style={{ color: ant.disponibilite < 95 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>

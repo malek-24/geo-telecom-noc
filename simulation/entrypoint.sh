@@ -36,12 +36,12 @@ conn.close()
 
 echo "[ENTRYPOINT] Antennes actuellement en base: ${NB_ANTENNES}"
 
-if [ "$NB_ANTENNES" != "120" ]; then
-    echo "[ENTRYPOINT] Initialisation des 120 antennes..."
+if [ "$NB_ANTENNES" -eq "0" ]; then
+    echo "[ENTRYPOINT] Initialisation des antennes (120 simulées + ISET Mahdia)..."
     python generate_antennes.py
     echo "[ENTRYPOINT] Antennes initialisées avec succès."
 else
-    echo "[ENTRYPOINT] 120 antennes déjà présentes — pas de réinitialisation."
+    echo "[ENTRYPOINT] ${NB_ANTENNES} antennes déjà présentes — pas de réinitialisation."
 fi
 
 # Lancer la simulation temps réel

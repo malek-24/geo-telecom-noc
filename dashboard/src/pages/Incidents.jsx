@@ -39,6 +39,45 @@ function elapsedStr(d) {
   return h > 0 ? `${h}h ${m}min` : `${m} min`;
 }
 
+/* ── Toast de notification ───────────────────────────────── */
+function Toast({ toast, onClose }) {
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(onClose, 5000);
+    return () => clearTimeout(t);
+  }, [toast, onClose]);
+
+  if (!toast) return null;
+  const isSuccess = toast.type === 'success';
+  return (
+    <div style={{
+      position: 'fixed', bottom: 28, right: 28, zIndex: 9999,
+      background: isSuccess ? 'var(--success-bg, #f0fdf4)' : 'var(--warning-bg, #fffbeb)',
+      border: `1.5px solid ${isSuccess ? 'var(--success, #22c55e)' : 'var(--warning, #f59e0b)'}`,
+      borderRadius: 10, padding: '14px 20px', maxWidth: 380,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+      display: 'flex', alignItems: 'flex-start', gap: 12,
+      animation: 'slideInRight 0.3s ease',
+    }}>
+      {isSuccess
+        ? <CheckCircle2 size={20} color="var(--success, #22c55e)" style={{ flexShrink: 0, marginTop: 2 }} />
+        : <AlertTriangle size={20} color="var(--warning, #f59e0b)" style={{ flexShrink: 0, marginTop: 2 }} />
+      }
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: isSuccess ? 'var(--success, #15803d)' : '#92400e', marginBottom: 4 }}>
+          {isSuccess ? '✅ Incident résolu' : '⚠️ Anomalie persistante'}
+        </div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          {toast.message}
+        </div>
+      </div>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', padding: 2, flexShrink: 0 }}>
+        <XCircle size={16} />
+      </button>
+    </div>
+  );
+}
+
 /* ── Page principale ─────────────────────────────────────── */
 export default function IncidentsPage() {
   const { token, role } = useAuth();
@@ -51,6 +90,7 @@ export default function IncidentsPage() {
   const [newComment,setNewComment]= useState('');
   const [newEtat,   setNewEtat]   = useState('en_cours');
   const [sending,   setSending]   = useState(false);
+  const [toast,     setToast]     = useState(null);
 
   const canResolve = ['administrateur', 'ingenieur_reseau'].includes(role);
 
@@ -72,11 +112,54 @@ export default function IncidentsPage() {
 
   const handleResolve = async (id) => {
     setResolving(id);
+
+    // ── Optimistic update : marquer immédiatement dans l'UI ────────
+    // Les données historiques (métriques, graphiques, scores) ne sont pas touchées.
+    // Seul le statut affiché change en attendant la réponse serveur.
+    setIncidents(prev => prev.map(inc =>
+      inc.id === id
+        ? { ...inc, statut: 'resolu', date_resolution: new Date().toISOString() }
+        : inc
+    ));
+
     try {
-      await axios.put(`${API_BASE_URL}/incidents/${id}/resolve`, {},
-        { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.put(
+        `${API_BASE_URL}/incidents/${id}/resolve`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const data = res.data;
+
+      // ── Toast selon le résultat de la validation IA ────────────
+      if (data.resolution_validee) {
+        setToast({
+          type: 'success',
+          message:
+            data.message ||
+            'Antenne → normal, score santé = 95. ' +
+            'Historique des mesures, graphiques et scores conservés.'
+        });
+      } else if (data.success) {
+        setToast({
+          type: 'warning',
+          message:
+            data.message ||
+            `Anomalie persistante détectée. Nouvel incident #${data.nouvel_incident_id || '?'} créé.`
+        });
+      }
+
+      // ── Rafraîchissement complet depuis le serveur ─────────────
       await fetchIncidents();
-    } catch (_) {}
+
+    } catch (err) {
+      // Annuler l'optimistic update en cas d'échec réseau
+      await fetchIncidents();
+      setToast({
+        type: 'warning',
+        message: err.response?.data?.error || 'Erreur lors de la résolution de l\'incident.'
+      });
+    }
     setResolving(null);
   };
 
@@ -140,6 +223,18 @@ export default function IncidentsPage() {
   return (
     <div style={{ display: 'flex' }}>
       <Sidebar />
+
+      {/* ── Toast de résolution ── */}
+      <Toast toast={toast} onClose={() => setToast(null)} />
+
+      {/* Animation CSS pour le toast */}
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(120%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+      `}</style>
+
       <div className="page-content">
         <div className="ip-shell">
 
