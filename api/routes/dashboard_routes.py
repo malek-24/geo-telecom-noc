@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash
 
 from database.connection import connecter_base_de_donnees, rows_to_dicts
 from utils.globals import ADMIN_LOGS, SYSTEM_SETTINGS
+from utils.audit import enregistrer_audit
 from auth.decorators import token_required
 
 
@@ -96,8 +97,12 @@ def create_user():
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (username, nom, email, password_hash, role, statut, departement, telephone))
-        conn.commit()
         new_id = cur.fetchone()[0]
+        enregistrer_audit(
+            conn, g.current_user["username"], "Création utilisateur",
+            cible=username, type_objet="utilisateur", valeur_apres=role,
+        )
+        conn.commit()
         cur.close(); conn.close()
 
         ADMIN_LOGS.insert(0, {
@@ -153,6 +158,14 @@ def update_user(user_id):
                 WHERE id=%s
             """, (nom, email, role, statut, departement, telephone, user_id))
 
+        cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+        urow = cur.fetchone()
+        cible = urow[0] if urow else f"ID {user_id}"
+        enregistrer_audit(
+            conn, g.current_user["username"], "Modification utilisateur",
+            cible=cible, type_objet="utilisateur",
+            valeur_apres=f"role={role} statut={statut}",
+        )
         conn.commit()
         cur.close(); conn.close()
         return jsonify({"success": True})
@@ -170,7 +183,14 @@ def delete_user(user_id):
     try:
         conn = connecter_base_de_donnees()
         cur  = conn.cursor()
+        cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+        urow = cur.fetchone()
+        cible = urow[0] if urow else f"ID {user_id}"
         cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+        enregistrer_audit(
+            conn, g.current_user["username"], "Suppression utilisateur",
+            cible=cible, type_objet="utilisateur", valeur_avant=cible,
+        )
         conn.commit()
         cur.close(); conn.close()
         return jsonify({"success": True})
@@ -198,8 +218,20 @@ def update_settings():
     err = _check_admin()
     if err: return err
     data = request.get_json() or {}
+    avant = {k: SYSTEM_SETTINGS.get(k) for k in data}
     for k, v in data.items():
         SYSTEM_SETTINGS[k] = v
+    try:
+        conn = connecter_base_de_donnees()
+        enregistrer_audit(
+            conn, g.current_user["username"], "Modification paramètres système",
+            cible="SYSTEM_SETTINGS", type_objet="parametre",
+            valeur_avant=str(avant)[:500], valeur_apres=str(data)[:500],
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
     return jsonify({"success": True})
 
 

@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from database.connection import connecter_base_de_donnees, rows_to_dicts
 from utils.globals import JWT_SECRET, JWT_EXPIRATION_HOURS, ADMIN_LOGS
+from utils.audit import enregistrer_audit
 from auth.decorators import token_required
 
 
@@ -39,18 +40,6 @@ def init_db_users():
                 status        VARCHAR(20)  DEFAULT 'Actif',
                 last_login    TIMESTAMP,
                 created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-
-        # ── Table messages chat interne ───────────────────────────────
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS messages_chat (
-                id          SERIAL PRIMARY KEY,
-                auteur_id   INTEGER REFERENCES users(id),
-                auteur_nom  VARCHAR(100),
-                auteur_role VARCHAR(50),
-                contenu     TEXT NOT NULL,
-                date_envoi  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
 
@@ -114,6 +103,11 @@ def login():
 
         # Mise à jour last_login
         cur.execute("UPDATE users SET last_login = NOW() WHERE id = %s", (user[0],))
+        enregistrer_audit(
+            conn, user[1], "Connexion",
+            cible=user[1], type_objet="session",
+            valeur_apres="succès",
+        )
         conn.commit()
         cur.close(); conn.close()
 
@@ -135,7 +129,12 @@ def login():
             "statut":      "Succès"
         })
 
-        return jsonify({"token": token, "username": user[1], "role": user[3]})
+        return jsonify({
+            "token": token,
+            "username": user[1],
+            "role": user[3],
+            "id": user[0],
+        })
 
     except Exception as e:
         print(f"[ERREUR LOGIN] {e}")
@@ -148,3 +147,21 @@ def login():
 def me():
     """Retourne les informations de l'utilisateur courant (depuis le JWT)."""
     return jsonify(g.current_user)
+
+
+@auth_bp.route("/auth/logout", methods=["POST"])
+@token_required
+def logout():
+    """Trace la déconnexion dans le journal d'audit."""
+    user = g.current_user
+    try:
+        conn = connecter_base_de_donnees()
+        enregistrer_audit(
+            conn, user.get("username", "inconnu"), "Déconnexion",
+            cible=user.get("username", ""), type_objet="session",
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[AUTH] logout audit : {e}")
+    return jsonify({"success": True})

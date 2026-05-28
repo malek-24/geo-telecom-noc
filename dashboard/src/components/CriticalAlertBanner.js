@@ -6,10 +6,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, X, Radio, ExternalLink } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE_URL } from '../services/apiConfig';
+import { API_BASE_URL, authCfg } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { DATA_REFRESH_MS } from '../dataRefreshMs';
+import { REFRESH_MS } from '../dataRefreshMs';
+import { formatTimeTN } from '../utils/dateTime';
 
 const ROLE_COLORS = {
   critique: { bg: '#fef2f2', border: '#dc2626', text: '#dc2626', badgeBg: '#dc2626' },
@@ -28,9 +29,7 @@ export default function CriticalAlertBanner() {
   const fetchCritical = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get(`${API_BASE_URL}/alerts/critical`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(`${API_BASE_URL}/alerts/critical`, authCfg(token));
       const data = res.data || [];
 
       // Ne montrer que les nouvelles alertes jamais vues
@@ -55,7 +54,7 @@ export default function CriticalAlertBanner() {
 
   useEffect(() => {
     fetchCritical();
-    const id = setInterval(fetchCritical, DATA_REFRESH_MS);
+    const id = setInterval(fetchCritical, REFRESH_MS.criticalBanner);
     return () => clearInterval(id);
   }, [fetchCritical]);
 
@@ -129,7 +128,7 @@ export default function CriticalAlertBanner() {
                       ALERTE CRITIQUE — IA
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-                      Isolation Forest • {(() => { const s = alerte.date_creation; const d = new Date(/[Z+]/.test(s) ? s : s.replace(' ','T')+'Z'); return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }); })()}
+                      Isolation Forest • {formatTimeTN(alerte.date_creation)}
                     </div>
                   </div>
                 </div>

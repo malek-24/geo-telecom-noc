@@ -413,14 +413,14 @@ Le Sprint 4 a apporté la dimension temps réel indispensable à la démonstrati
 
 ## Résumé du projet
 
-Ce projet de fin d'études a abouti à la réalisation de **GEO-TÉLÉCOM NOC Platform**, une plateforme complète et opérationnelle de supervision intelligente des réseaux télécoms pour le centre de Mahdia de Tunisie Télécom. La plateforme intègre six composants technologiques majeurs orchestrés par Docker Compose :
+Ce projet de fin d'études a abouti à la réalisation de **GEO-TÉLÉCOM NOC Platform**, une plateforme complète et opérationnelle de supervision intelligente des réseaux télécoms pour le centre de Mahdia de Tunisie Télécom. La plateforme intègre cinq composants technologiques majeurs orchestrés par Docker Compose :
 
 - **API REST Flask** (Python) avec authentification JWT et 20+ endpoints
 - **Base de données PostgreSQL/PostGIS** avec schéma géospatial optimisé
 - **Moteur IA Isolation Forest** (scikit-learn) pour la détection automatique d'anomalies
 - **Frontend React.js** avec RBAC, dashboard temps réel et carte Leaflet interactive
 - **Simulateur IoT** Python reproduisant le comportement de 120 antennes
-- **Infrastructure SIG** (GeoServer + GeoNetwork) pour la dimension géographique
+- **Infrastructure SIG** (GeoServer) pour la dimension géographique
 
 ## Résultats obtenus
 
@@ -463,10 +463,9 @@ Ce projet de fin d'études a abouti à la réalisation de **GEO-TÉLÉCOM NOC Pl
 1. **Modèle IA amélioré** : intégrer des modèles LSTM pour la prédiction de pannes futures basée sur l'historique temporel des métriques
 2. **Collecte réelle des données** : remplacer le simulateur par des agents SNMP ou Prometheus pour la collecte de données sur équipements réels Huawei/Ericsson
 3. **Alertes multi-canal** : intégrer des notifications email (SMTP), SMS (Twilio) et webhook Slack pour les incidents critiques
-4. **Tableau de bord Grafana** : intégrer Grafana pour des visualisations avancées et des dashboards opérationnels personnalisables
-5. **API GraphQL** : exposer les données via GraphQL en complément du REST pour des requêtes plus flexibles
-6. **Tests automatisés** : ajouter une suite de tests unitaires (pytest) et d'intégration pour garantir la fiabilité des modules IA et API
-7. **Déploiement Cloud** : migrer l'infrastructure vers AWS/Azure avec Kubernetes pour la haute disponibilité et l'élasticité
+4. **API GraphQL** : exposer les données via GraphQL en complément du REST pour des requêtes plus flexibles
+5. **Tests automatisés** : ajouter une suite de tests unitaires (pytest) et d'intégration pour garantir la fiabilité des modules IA et API
+6. **Déploiement Cloud** : migrer l'infrastructure vers AWS/Azure avec Kubernetes pour la haute disponibilité et l'élasticité
 
 ---
 

@@ -4,8 +4,7 @@
  * Rôles de la plateforme NOC Tunisie Télécom :
  *
  *   administrateur     : accès complet (toutes les pages + CRUD antennes)
- *   ingenieur_reseau   : accès technique (antennes, analytics, rapports)
- *   ingenieur_reseau     : supervision temps réel (dashboard, incidents, rapports)
+ *   ingenieur_reseau   : supervision (dashboard, carte, antennes, incidents, rapports)
  *   technicien_terrain : accès consultation (dashboard, carte, antennes)
  */
 
@@ -47,7 +46,7 @@ export const MENU_NAVIGATION = [
   {
     to:    "/moderation",
     label: "Incidents",
-    roles: [ROLE.ADMIN, ROLE.TECHNICIEN],
+    roles: [ROLE.ADMIN, ROLE.INGENIEUR, ROLE.TECHNICIEN],
   },
   {
     to:    "/rapports",

@@ -87,48 +87,9 @@ services:
     networks:
       - sig_net
 
-  # ─── GeoServer ───────────────────────────────────────────────
-  geoserver:
-    image: docker.osgeo.org/geoserver:2.25.2
-    container_name: geoserver
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      GEOSERVER_DATA_DIR: /opt/geoserver_data
-      SKIP_DEMO_DATA:     "true"
-      POSTGRES_HOST:      postgres
-      POSTGRES_PORT:      "5432"
-      POSTGRES_DB:        antennes_mahdia
-      POSTGRES_USER:      postgres
-      POSTGRES_PASSWORD:  "1234"
-    volumes:
-      - geoserver_data:/opt/geoserver_data
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - sig_net
-
-  # ─── GeoNetwork ──────────────────────────────────────────────
-  geonetwork:
-    image: geonetwork:3.12.12
-    container_name: geonetwork
-    restart: unless-stopped
-    ports:
-      - "8081:8080"
-    environment:
-      DATA_DIR: /catalogue-data
-    volumes:
-      - geonetwork_data:/catalogue-data
-    networks:
-      - sig_net
-
 # ─── Volumes persistants ──────────────────────────────────────
 volumes:
   postgres_data:
-  geoserver_data:
-  geonetwork_data:
 
 # ─── Réseau interne isolé ─────────────────────────────────────
 networks:

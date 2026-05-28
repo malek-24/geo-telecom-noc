@@ -1,11 +1,15 @@
-/*
- * dataRefreshMs.js  —  Intervalle de rafraîchissement automatique
- *
- * Le dashboard se met à jour automatiquement toutes les X millisecondes.
- * 10000 ms = 10 secondes (Idéal pour la soutenance / temps réel)
- *
- * Pour changer la fréquence, modifier uniquement ce fichier.
+/**
+ * Intervalles de rafraîchissement automatique (polling silencieux, sans rechargement de page).
  */
+export const REFRESH_MS = {
+  dashboard: 15000,
+  map: 15000,
+  antennes: 15000,
+  incidents: 10000,
+  admin: 30000,
+  chat: 5000,
+  criticalBanner: 15000,
+};
 
-export const DATA_REFRESH_MS = 1000; // 1 secondes (temps réel)
-
+/** @deprecated Utiliser REFRESH_MS — conservé pour imports existants */
+export const DATA_REFRESH_MS = REFRESH_MS.dashboard;

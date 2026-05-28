@@ -70,6 +70,10 @@
   gap: 16px;
 }
 
+.dashboard-kpi-grid--5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 /* ── MAP ── */
 .dashboard-map-panel {
   background: var(--surface);
@@ -170,9 +174,11 @@
 
 @media (max-width: 1400px) {
   .dashboard-kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .dashboard-kpi-grid--5 { grid-template-columns: repeat(3, 1fr); }
   .dashboard-bottom-row { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {
   .dashboard-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-kpi-grid--5 { grid-template-columns: repeat(2, 1fr); }
 }

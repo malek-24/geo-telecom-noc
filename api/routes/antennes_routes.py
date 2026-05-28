@@ -9,6 +9,8 @@ import pandas as pd
 
 from database.connection import connecter_base_de_donnees, rows_to_dicts
 from utils.globals import ADMIN_LOGS
+from utils.audit import enregistrer_audit
+from utils.historique import enregistrer_changement_etat, lire_statut_antenne
 from auth.decorators import token_required, role_required
 
 
@@ -45,7 +47,8 @@ def liste_antennes():
                 END AS statut,
                 COALESCE(m.risk_score, 0.0) AS risk_score,
                 CASE WHEN COALESCE(m.statut,'') = 'critique' THEN true ELSE false END AS anomalie,
-                to_char(m.date_mesure, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_mesure
+                to_char((m.date_mesure AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                    'YYYY-MM-DD"T"HH24:MI:SS') || '+01:00' AS date_mesure
             FROM antennes a
             LEFT JOIN LATERAL (
                 SELECT * FROM mesures
@@ -160,6 +163,31 @@ def get_antenne_incidents(ant_id):
         return jsonify({"error": str(e)}), 500
 
 
+@network_bp.route("/antennes/<int:ant_id>/historique", methods=["GET"])
+@token_required
+def get_historique_etats(ant_id):
+    """Historique des transitions d'état (normal → alerte → critique → normal)."""
+    try:
+        conn = connecter_base_de_donnees()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT
+                ancien_etat AS ancien,
+                nouvel_etat AS nouveau,
+                to_char(date_changement, 'YYYY-MM-DD"T"HH24:MI:SS') AS date
+            FROM historique_etats
+            WHERE antenne_id = %s
+            ORDER BY date_changement DESC
+            LIMIT 100
+        """, (ant_id,))
+        data = rows_to_dicts(cur)
+        cur.close()
+        conn.close()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ════════════════════════════════════════════════════════════════
 #  STATISTIQUES & DASHBOARD
 # ════════════════════════════════════════════════════════════════
@@ -240,13 +268,34 @@ def get_dashboard_summary():
         cur.execute("SELECT COUNT(*) FROM incidents WHERE statut != 'resolu' AND criticite = 'warning'")
         incidents_alertes = cur.fetchone()[0]
 
-        cur.close(); conn.close()
+        cur.execute("""
+            SELECT COUNT(*) FROM incidents
+            WHERE statut != 'resolu'
+              AND source_detection ILIKE '%Isolation Forest%'
+        """)
+        incidents_ia_ouverts = cur.fetchone()[0]
+
+        cur.close()
+
+        import ia.model as ia_model
+        dernier_entrainement = (
+            ia_model._last_train_time.strftime("%d/%m/%Y %H:%M")
+            if ia_model._last_train_time else "—"
+        )
 
         ai_risk_score = 0.0
         ai_confidence = 100.0
+        sante_moyenne = round(float(avg[3] or 0), 1)
+        anomalies = nb_critique + nb_alerte
+        taux_normales = 0.0
+        taux_anomalie = 0.0
         if total_antennes > 0:
             ai_risk_score = min(100.0, ((nb_critique * 3 + nb_alerte) / total_antennes) * 100)
             ai_confidence = (nb_normal / total_antennes) * 100
+            taux_normales = round((nb_normal / total_antennes) * 100, 1)
+            taux_anomalie = round((anomalies / total_antennes) * 100, 1)
+
+        conn.close()
 
         return jsonify({
             "total_antennes":   total_antennes,
@@ -259,9 +308,14 @@ def get_dashboard_summary():
             "incidents_actifs": incidents_actifs,
             "active_alerts":    incidents_alertes,
             "incidents":        incidents_critiques,
-            "anomalies":        nb_critique + nb_alerte,
+            "anomalies":        anomalies,
             "ai_risk_score":    round(ai_risk_score, 1),
             "ai_confidence":    round(ai_confidence, 1),
+            "sante_moyenne":    sante_moyenne,
+            "incidents_ia":     incidents_ia_ouverts,
+            "dernier_entrainement": dernier_entrainement,
+            "taux_normales":    taux_normales,
+            "taux_anomalie":    taux_anomalie,
         })
     except Exception as e:
         print(f"[ERREUR] GET /dashboard/summary : {e}")
@@ -353,6 +407,7 @@ def creer_antenne():
             VALUES (%s, 28.0, 40.0, -65.0, 15.0, 99.0, %s, NOW())
         """, (new_id, statut_initial))
 
+        enregistrer_audit(conn, g.current_user["username"], "Création antenne", nom)
         conn.commit(); cur.close(); conn.close()
 
         ADMIN_LOGS.insert(0, {
@@ -393,10 +448,14 @@ def modifier_antenne(ant_id):
     try:
         conn = connecter_base_de_donnees()
         cur  = conn.cursor()
+        cur.execute("SELECT nom FROM antennes WHERE id = %s", (ant_id,))
+        nom_row = cur.fetchone()
+        cible = nom_row[0] if nom_row else f"ID {ant_id}"
         cur.execute(f"UPDATE antennes SET {', '.join(fields)} WHERE id = %s", tuple(values))
         if cur.rowcount == 0:
             cur.close(); conn.close()
             return jsonify({"error": "Antenne introuvable"}), 404
+        enregistrer_audit(conn, g.current_user["username"], "Modification antenne", cible)
         conn.commit(); cur.close(); conn.close()
 
         ADMIN_LOGS.insert(0, {
@@ -418,12 +477,17 @@ def supprimer_antenne(ant_id):
     try:
         conn = connecter_base_de_donnees()
         cur  = conn.cursor()
+        cur.execute("SELECT nom FROM antennes WHERE id = %s", (ant_id,))
+        nom_row = cur.fetchone()
+        cible = nom_row[0] if nom_row else f"ID {ant_id}"
         cur.execute("DELETE FROM incidents WHERE antenne_id = %s", (ant_id,))
+        enregistrer_audit(conn, g.current_user["username"], "Suppression incidents antenne", cible)
         cur.execute("DELETE FROM mesures   WHERE antenne_id = %s", (ant_id,))
         cur.execute("DELETE FROM antennes  WHERE id = %s",         (ant_id,))
         if cur.rowcount == 0:
             cur.close(); conn.close()
             return jsonify({"error": "Antenne introuvable"}), 404
+        enregistrer_audit(conn, g.current_user["username"], "Suppression antenne", cible)
         conn.commit(); cur.close(); conn.close()
 
         ADMIN_LOGS.insert(0, {
@@ -495,6 +559,22 @@ def modifier_metriques_antenne(ant_id):
             cur.close(); conn.close()
             return jsonify({"error": f"Antenne ID {ant_id} introuvable"}), 404
 
+        cur.execute("""
+            SELECT temperature, cpu, signal, latence, disponibilite, statut
+            FROM mesures WHERE antenne_id = %s
+            ORDER BY date_mesure DESC LIMIT 1
+        """, (ant_id,))
+        avant = cur.fetchone()
+        avant_txt = (
+            f"T={avant[0]} CPU={avant[1]} Sig={avant[2]} "
+            f"Lat={avant[3]} D={avant[4]} {avant[5]}"
+            if avant else "—"
+        )
+        apres_txt = (
+            f"T={temperature} CPU={cpu} Sig={signal} "
+            f"Lat={latence} D={disponibilite}"
+        )
+
         # Insérer la nouvelle mesure avec les valeurs de l'admin
         cur.execute("""
             INSERT INTO mesures
@@ -506,6 +586,11 @@ def modifier_metriques_antenne(ant_id):
             round(temperature, 1), round(cpu, 1), round(signal, 1),
             round(latence, 1), round(disponibilite, 1),
         ))
+        enregistrer_audit(
+            conn, g.current_user["username"], "Modification métriques antenne",
+            cible=antenne[1], type_objet="antenne",
+            valeur_avant=avant_txt, valeur_apres=apres_txt,
+        )
         conn.commit()
         cur.close(); conn.close()
 

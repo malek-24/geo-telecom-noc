@@ -95,6 +95,49 @@ def force_retrain():
         return jsonify({"error": str(e)}), 500
 
 
+@ia_bp.route("/ia/info", methods=["GET"])
+@token_required
+def get_ia_info():
+    """
+    Informations pédagogiques sur le moteur IA (page « IA & Machine Learning »).
+    """
+    try:
+        import ia.model as _ia_model
+        from ia.geo_context import ML_FEATURES
+
+        conn = connecter_base_de_donnees()
+        import pandas as pd
+
+        total = int(pd.read_sql("SELECT COUNT(*) AS n FROM antennes", conn)["n"].iloc[0])
+        df_stat = pd.read_sql(
+            "SELECT statut, COUNT(*) AS n FROM antennes_statut GROUP BY statut", conn
+        )
+        by_status = dict(zip(df_stat["statut"], df_stat["n"]))
+        anomalies = int(by_status.get("alerte", 0) + by_status.get("critique", 0))
+        taux_anomalie = round((anomalies / total) * 100, 1) if total else 0.0
+
+        last_train = _ia_model._last_train_time
+        conn.close()
+
+        return jsonify({
+            "modele": "Isolation Forest",
+            "type": "Apprentissage non supervisé",
+            "fenetre": _ia_model.MAX_SAMPLES_TRAIN,
+            "features": list(ML_FEATURES),
+            "antennes": total,
+            "anomalies": anomalies,
+            "taux_anomalie": taux_anomalie,
+            "dernier_entrainement": (
+                last_train.strftime("%d/%m/%Y %H:%M")
+                if last_train else "Non encore entraîné"
+            ),
+            "n_estimators": _ia_model.IF_N_ESTIMATORS,
+            "contamination": _ia_model.IF_CONTAMINATION,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @ia_bp.route("/ia/model/info", methods=["GET"])
 @token_required
 def get_model_info():

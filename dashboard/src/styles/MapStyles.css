@@ -189,7 +189,6 @@
   align-items: center;
 }
 
-/* Voir historique button inside popup */
 .map-popup-history-btn {
   display: block;
   width: 100%;
@@ -215,7 +214,7 @@
   box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
 }
 
-/* Custom marker — no default icon */
+/* Custom marker */
 .custom-noc-icon {
   background: transparent !important;
   border: none !important;
@@ -227,7 +226,6 @@
   justify-content: center;
 }
 
-/* Pulsing for critique (red) */
 .noc-marker.marker-pulse-red {
   animation: pulseRed 1.5s infinite;
 }
@@ -237,7 +235,6 @@
   50%       { filter: drop-shadow(0 0 6px #dc2626); }
 }
 
-/* Pulsing for alerte (orange) */
 .noc-marker.marker-pulse-orange {
   animation: pulseOrange 2s infinite;
 }

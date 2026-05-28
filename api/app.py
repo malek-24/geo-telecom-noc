@@ -14,6 +14,8 @@ from routes.reports_routes   import reports_bp
 from routes.dashboard_routes import admin_bp
 from routes.iot_routes       import iot_bp
 from routes.chat_routes      import chat_bp   # ← Chat privé
+from routes.audit_routes     import audit_bp
+from routes.export_routes    import export_bp
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -27,6 +29,8 @@ def _bootstrap_au_demarrage():
             from ia.prediction import bootstrap_reseau_normal
 
             conn = connecter_base_de_donnees()
+            from utils.db_extensions import initialiser_tables_extensions
+            initialiser_tables_extensions(conn)
             cur  = conn.cursor()
             cur.close()
             if os.getenv("NOC_STARTUP_RESET", "1") == "1":
@@ -49,6 +53,8 @@ app.register_blueprint(reports_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(iot_bp)
 app.register_blueprint(chat_bp)              # ← Chat privé
+app.register_blueprint(audit_bp)
+app.register_blueprint(export_bp)
 
 # ── Healthcheck (pour Docker) ─────────────────────────────────────
 @app.route("/health", methods=["GET"])

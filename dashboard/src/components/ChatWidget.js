@@ -1,19 +1,19 @@
 /**
- * ChatWidget.js — Chat interne NOC avec messagerie privée
- * Canal Public + Conversations Privées entre utilisateurs.
+ * ChatWidget.js — Messagerie NOC (canal public + privé)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MessageSquare, Send, X, ChevronDown, Lock, Users, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
-import { API_BASE_URL } from '../services/apiConfig';
+import { API_BASE_URL, authCfg } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
-
-const POLL_MS = 5000;
+import { REFRESH_MS } from '../dataRefreshMs';
+import { formatDateTimeTN } from '../utils/dateTime';
+import './ChatWidget.css';
 
 const ROLE_COLORS = {
-  administrateur:    '#7c3aed',
-  ingenieur_reseau:  '#2563eb',
-  technicien_terrain:'#d97706',
+  administrateur: '#7c3aed',
+  ingenieur_reseau: '#2563eb',
+  technicien_terrain: '#d97706',
 };
 
 function getRoleColor(role) {
@@ -22,107 +22,204 @@ function getRoleColor(role) {
 
 function RoleTag({ role }) {
   const labels = {
-    administrateur:    'Admin',
-    ingenieur_reseau:  'Ingénieur',
-    technicien_terrain:'Technicien',
+    administrateur: 'Admin',
+    ingenieur_reseau: 'Ingénieur',
+    technicien_terrain: 'Technicien',
   };
   const color = getRoleColor(role);
   return (
-    <span style={{
-      background: color + '22', color,
-      fontSize: '0.65rem', fontWeight: 700,
-      padding: '1px 6px', borderRadius: 20,
-    }}>
+    <span className="chat-role-tag" style={{ background: `${color}18`, color }}>
       {labels[role] || role}
     </span>
   );
 }
 
+function messageErreur(err) {
+  if (!err.response) {
+    return 'Connexion perdue. Vérifiez le réseau ou que l\'API est démarrée.';
+  }
+  const status = err.response.status;
+  const msg = err.response.data?.error;
+  if (status === 400) return msg || 'Message invalide.';
+  if (status === 404) return msg || 'Destinataire introuvable.';
+  if (status === 401) return 'Session expirée. Reconnectez-vous.';
+  if (status === 403) return msg || 'Action non autorisée.';
+  if (status >= 500) return msg || 'Erreur serveur. Réessayez plus tard.';
+  return msg || "Erreur lors de l'envoi du message.";
+}
+
+function estMonMessage(msg, userId, username) {
+  if (userId && msg.auteur_id) return Number(msg.auteur_id) === Number(userId);
+  return msg.auteur_nom === username;
+}
+
 export default function ChatWidget() {
-  const { token, username, role, user } = useAuth();
+  const { token, username, role, userId } = useAuth();
   const [ouvert, setOuvert] = useState(false);
-  // 'public' | { id, username, fullname }
   const [canal, setCanal] = useState('public');
-  const [vue, setVue] = useState('canal'); // 'canal' | 'users'
+  const [vue, setVue] = useState('canal');
   const [messages, setMessages] = useState([]);
   const [utilisateurs, setUtilisateurs] = useState([]);
   const [saisie, setSaisie] = useState('');
   const [envoi, setEnvoi] = useState(false);
+  const [erreurEnvoi, setErreurEnvoi] = useState('');
   const [nonLus, setNonLus] = useState(0);
+  const [nonLusParPeer, setNonLusParPeer] = useState({});
   const lastIdRef = useRef(0);
   const bottomRef = useRef(null);
-  const inputRef  = useRef(null);
+  const inputRef = useRef(null);
+  const notifPermission = useRef(
+    typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+  );
+  const prevUnreadTotal = useRef(0);
 
-  // ── Chargement messages ────────────────────────────────────
+  const marquerConversationLue = useCallback(async () => {
+    if (!token) return;
+    try {
+      if (canal === 'public') {
+        await axios.post(`${API_BASE_URL}/chat/messages/read`, {}, authCfg(token));
+      } else if (canal?.id) {
+        await axios.post(`${API_BASE_URL}/chat/private/${canal.id}/read`, {}, authCfg(token));
+      }
+      setNonLusParPeer(prev => {
+        const next = { ...prev };
+        if (canal === 'public') next.public = 0;
+        else if (canal?.id) next[canal.id] = 0;
+        return next;
+      });
+    } catch (_) {}
+  }, [token, canal]);
+
+  const fetchUnreadSummary = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_BASE_URL}/chat/unread/summary`, authCfg(token));
+      const total = res.data?.total ?? 0;
+      if (
+        !ouvert
+        && total > prevUnreadTotal.current
+        && prevUnreadTotal.current > 0
+        && typeof Notification !== 'undefined'
+        && notifPermission.current === 'granted'
+      ) {
+        try {
+          new Notification('Nouveau message NOC', {
+            body: `Vous avez ${total} message(s) non lu(s).`,
+            icon: '/logo-noc.svg',
+          });
+        } catch (_) {}
+      }
+      prevUnreadTotal.current = total;
+      setNonLus(total);
+      const map = { public: res.data?.public ?? 0 };
+      (res.data?.par_expediteur || []).forEach(row => {
+        map[row.auteur_id] = row.count;
+      });
+      setNonLusParPeer(map);
+    } catch (_) {}
+  }, [token, ouvert]);
+
+  const notifierNouveauMessage = useCallback((msg) => {
+    if (ouvert) return;
+    if (estMonMessage(msg, userId, username)) return;
+    const titre = canal === 'public'
+      ? `Nouveau message — ${msg.auteur_nom || 'NOC'}`
+      : `Message de ${msg.auteur_nom || 'un utilisateur'}`;
+    const body = (msg.contenu || '').slice(0, 120);
+    if (typeof Notification !== 'undefined' && notifPermission.current === 'granted') {
+      try {
+        new Notification(titre, { body, icon: '/logo-noc.svg' });
+      } catch (_) {}
+    }
+  }, [ouvert, canal, userId, username]);
+
   const chargerMessages = useCallback(async () => {
     if (!token) return;
     try {
       const url = canal === 'public'
         ? `${API_BASE_URL}/chat/messages`
         : `${API_BASE_URL}/chat/private/${canal.id}`;
-
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(url, authCfg(token));
       const msgs = res.data || [];
       setMessages(msgs);
       if (msgs.length > 0) lastIdRef.current = msgs[msgs.length - 1].id;
+      await marquerConversationLue();
+      await fetchUnreadSummary();
     } catch (_) {}
-  }, [token, canal]);
+  }, [token, canal, marquerConversationLue, fetchUnreadSummary]);
 
-  // ── Polling nouveaux messages ──────────────────────────────
   const pollMessages = useCallback(async () => {
     if (!token) return;
     try {
       const url = canal === 'public'
         ? `${API_BASE_URL}/chat/messages/new?since_id=${lastIdRef.current}`
         : `${API_BASE_URL}/chat/private/${canal.id}/new?since_id=${lastIdRef.current}`;
-
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(url, authCfg(token));
       const nouveaux = res.data || [];
       if (nouveaux.length > 0) {
         setMessages(prev => [...prev, ...nouveaux]);
         lastIdRef.current = nouveaux[nouveaux.length - 1].id;
-        if (!ouvert) setNonLus(prev => prev + nouveaux.length);
+        nouveaux.forEach(msg => {
+          if (!estMonMessage(msg, userId, username)) {
+            if (!ouvert || (canal !== 'public' && vue !== 'canal')) {
+              notifierNouveauMessage(msg);
+            }
+          }
+        });
+        if (ouvert && vue === 'canal') {
+          await marquerConversationLue();
+        } else {
+          await fetchUnreadSummary();
+        }
       }
     } catch (_) {}
-  }, [token, canal, ouvert]);
+  }, [token, canal, ouvert, vue, userId, username, marquerConversationLue, fetchUnreadSummary, notifierNouveauMessage]);
 
-  // ── Chargement liste utilisateurs ─────────────────────────
   const chargerUtilisateurs = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get(`${API_BASE_URL}/chat/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(`${API_BASE_URL}/chat/users`, authCfg(token));
       setUtilisateurs(res.data || []);
     } catch (_) {}
   }, [token]);
 
+  useEffect(() => { fetchUnreadSummary(); }, [fetchUnreadSummary]);
+  useEffect(() => {
+    const id = setInterval(fetchUnreadSummary, REFRESH_MS.chat);
+    return () => clearInterval(id);
+  }, [fetchUnreadSummary]);
+
   useEffect(() => { chargerMessages(); }, [chargerMessages]);
   useEffect(() => {
-    const id = setInterval(pollMessages, POLL_MS);
+    const id = setInterval(pollMessages, REFRESH_MS.chat);
     return () => clearInterval(id);
   }, [pollMessages]);
+
   useEffect(() => {
     if (ouvert && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, ouvert]);
 
-  const ouvrirChat = () => {
+  const ouvrirChat = async () => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      try {
+        notifPermission.current = await Notification.requestPermission();
+      } catch (_) {}
+    }
     setOuvert(true);
-    setNonLus(0);
+    setErreurEnvoi('');
+    await marquerConversationLue();
+    await fetchUnreadSummary();
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  const changerCanal = (nouveauCanal) => {
+  const changerCanal = async (nouveauCanal) => {
     setCanal(nouveauCanal);
     setMessages([]);
     lastIdRef.current = 0;
     setVue('canal');
+    setErreurEnvoi('');
   };
 
   const ouvrirListeUsers = () => {
@@ -130,250 +227,150 @@ export default function ChatWidget() {
     setVue('users');
   };
 
-  // ── Envoi message ──────────────────────────────────────────
   const envoyerMessage = async (e) => {
     e.preventDefault();
-    if (!saisie.trim() || envoi) return;
+    const texte = saisie.trim();
+    if (!texte || envoi) return;
+
+    if (canal !== 'public' && (!canal.id || canal.id <= 0)) {
+      setErreurEnvoi('Destinataire invalide.');
+      return;
+    }
+
     setEnvoi(true);
+    setErreurEnvoi('');
     try {
       const url = canal === 'public'
         ? `${API_BASE_URL}/chat/messages`
         : `${API_BASE_URL}/chat/private/${canal.id}`;
 
-      const res = await axios.post(url,
-        { contenu: saisie.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setMessages(prev => [...prev, res.data]);
+      const res = await axios.post(url, { contenu: texte }, authCfg(token));
+      const msg = {
+        ...res.data,
+        auteur_id: res.data.auteur_id ?? userId,
+        auteur_nom: res.data.auteur_nom ?? username,
+        auteur_role: res.data.auteur_role ?? role,
+      };
+      setMessages(prev => [...prev, msg]);
       lastIdRef.current = res.data.id;
       setSaisie('');
-    } catch (_) {
-      alert("Erreur lors de l'envoi du message.");
+    } catch (err) {
+      setErreurEnvoi(messageErreur(err));
     } finally {
       setEnvoi(false);
       inputRef.current?.focus();
     }
   };
 
-  // ── Titre de l'en-tête ─────────────────────────────────────
   const headerTitle = canal === 'public'
-    ? 'Chat NOC — Canal Public'
-    : `💬 ${canal.fullname || canal.username}`;
+    ? 'Chat NOC — Canal public'
+    : (canal.fullname || canal.username);
 
   const headerSub = canal === 'public'
     ? 'Tunisie Télécom — Mahdia'
     : 'Conversation privée';
 
+  const badgeCount = nonLus > 99 ? '99+' : nonLus;
+
   return (
     <>
-      {/* Bouton flottant */}
       {!ouvert && (
-        <button
-          onClick={ouvrirChat}
-          title="Chat interne NOC"
-          style={{
-            position: 'fixed', bottom: 28, right: 28, zIndex: 8000,
-            width: 54, height: 54, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-            border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 20px rgba(37,99,235,0.45)',
-            transition: 'transform 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-        >
+        <button type="button" className="chat-fab" onClick={ouvrirChat} title="Messagerie NOC">
           <MessageSquare size={22} color="#fff" />
-          {nonLus > 0 && (
-            <span style={{
-              position: 'absolute', top: 6, right: 6,
-              background: '#dc2626', color: '#fff',
-              borderRadius: '50%', minWidth: 18, height: 18,
-              fontSize: '0.7rem', fontWeight: 700,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '0 4px'
-            }}>
-              {nonLus > 9 ? '9+' : nonLus}
-            </span>
-          )}
+          {nonLus > 0 && <span className="chat-fab-badge">{badgeCount}</span>}
         </button>
       )}
 
-      {/* Fenêtre chat */}
       {ouvert && (
-        <div style={{
-          position: 'fixed', bottom: 28, right: 28, zIndex: 8000,
-          width: 360, height: 520,
-          background: '#0f172a',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 18,
-          boxShadow: '0 16px 60px rgba(0,0,0,0.6)',
-          display: 'flex', flexDirection: 'column',
-          overflow: 'hidden',
-          animation: 'slideUpChat 0.3s ease',
-        }}>
-
-          {/* Header */}
-          <div style={{
-            padding: '12px 16px',
-            background: 'linear-gradient(135deg, #1e3a8a, #4c1d95)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="chat-panel">
+          <div className="chat-header">
+            <div className="chat-header-left">
               {canal !== 'public' && (
-                <button
-                  onClick={() => changerCanal('public')}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', display: 'flex', padding: 0 }}
-                >
+                <button type="button" className="chat-icon-btn" onClick={() => changerCanal('public')} aria-label="Retour">
                   <ArrowLeft size={16} />
                 </button>
               )}
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
+              <div className="chat-status-dot" />
               <div>
-                <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.87rem' }}>{headerTitle}</div>
-                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.68rem' }}>{headerSub}</div>
+                <div className="chat-header-title">{headerTitle}</div>
+                <div className="chat-header-sub">{headerSub}</div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {/* Bouton utilisateurs */}
-              <button
-                onClick={ouvrirListeUsers}
-                title="Messages privés"
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex' }}
-              >
+            <div className="chat-header-actions">
+              <button type="button" className="chat-icon-btn" onClick={ouvrirListeUsers} title="Messages privés">
                 <Lock size={14} />
               </button>
-              {/* Bouton canal public */}
               {canal !== 'public' && (
-                <button
-                  onClick={() => changerCanal('public')}
-                  title="Canal public"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex' }}
-                >
+                <button type="button" className="chat-icon-btn" onClick={() => changerCanal('public')} title="Canal public">
                   <Users size={14} />
                 </button>
               )}
-              <button
-                onClick={() => setOuvert(false)}
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex' }}
-              >
-                <ChevronDown size={14} />
-              </button>
-              <button
-                onClick={() => setOuvert(false)}
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: '#fff', display: 'flex' }}
-              >
+              <button type="button" className="chat-icon-btn" onClick={() => setOuvert(false)} aria-label="Fermer">
                 <X size={14} />
               </button>
             </div>
           </div>
 
-          {/* Vue : Liste des utilisateurs */}
           {vue === 'users' && (
-            <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.72rem', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Choisir un destinataire
-              </div>
+            <div className="chat-users-list">
+              <div className="chat-users-label">Choisir un destinataire</div>
               {utilisateurs.length === 0 ? (
-                <div style={{ color: '#475569', textAlign: 'center', marginTop: 30, fontSize: '0.82rem' }}>
-                  Aucun autre utilisateur actif.
-                </div>
-              ) : utilisateurs.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => changerCanal(u)}
-                  style={{
-                    width: '100%', textAlign: 'left',
-                    background: canal !== 'public' && canal.id === u.id
-                      ? 'rgba(37,99,235,0.2)'
-                      : 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.07)',
-                    borderRadius: 10, padding: '10px 12px',
-                    cursor: 'pointer', marginBottom: 6,
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    color: '#e2e8f0',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(37,99,235,0.15)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = canal !== 'public' && canal.id === u.id ? 'rgba(37,99,235,0.2)' : 'rgba(255,255,255,0.04)'; }}
-                >
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%',
-                    background: getRoleColor(u.role) + '33',
-                    border: `2px solid ${getRoleColor(u.role)}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.8rem', fontWeight: 700, color: getRoleColor(u.role),
-                    flexShrink: 0,
-                  }}>
-                    {(u.fullname || u.username).charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{u.fullname || u.username}</div>
-                    <RoleTag role={u.role} />
-                  </div>
-                  <Lock size={12} style={{ marginLeft: 'auto', opacity: 0.4 }} color="#fff" />
-                </button>
-              ))}
-              <button
-                onClick={() => setVue('canal')}
-                style={{
-                  width: '100%', marginTop: 8, padding: '8px',
-                  background: 'none', border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 10, color: 'rgba(255,255,255,0.5)',
-                  cursor: 'pointer', fontSize: '0.8rem',
-                }}
-              >
+                <p className="chat-empty">Aucun autre utilisateur actif.</p>
+              ) : utilisateurs.map(u => {
+                const nb = nonLusParPeer[u.id] || 0;
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    className={`chat-user-row${canal !== 'public' && canal.id === u.id ? ' active' : ''}`}
+                    onClick={() => changerCanal(u)}
+                  >
+                    <div className="chat-avatar" style={{ borderColor: getRoleColor(u.role), color: getRoleColor(u.role) }}>
+                      {(u.fullname || u.username).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="chat-user-info">
+                      <span className="chat-user-name">{u.fullname || u.username}</span>
+                      <RoleTag role={u.role} />
+                    </div>
+                    {nb > 0 && <span className="chat-peer-badge">{nb > 9 ? '9+' : nb}</span>}
+                  </button>
+                );
+              })}
+              <button type="button" className="chat-back-link" onClick={() => setVue('canal')}>
                 ← Retour au canal
               </button>
             </div>
           )}
 
-          {/* Vue : Canal messages */}
           {vue === 'canal' && (
             <>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 6px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div className="chat-messages">
                 {messages.length === 0 && (
-                  <div style={{ textAlign: 'center', color: '#475569', fontSize: '0.8rem', marginTop: 40 }}>
-                    <MessageSquare size={26} style={{ marginBottom: 8, opacity: 0.4 }} />
-                    <div>{canal === 'public' ? 'Aucun message.' : 'Commencez la conversation !'}</div>
+                  <div className="chat-empty">
+                    <MessageSquare size={26} />
+                    <p>{canal === 'public' ? 'Aucun message.' : 'Commencez la conversation.'}</p>
                   </div>
                 )}
                 {messages.map((msg, idx) => {
-                  const estMoi = msg.auteur_nom === username;
-                  const color  = getRoleColor(msg.auteur_role);
+                  const estMoi = estMonMessage(msg, userId, username);
+                  const color = getRoleColor(msg.auteur_role);
                   return (
-                    <div key={msg.id || idx} style={{ display: 'flex', flexDirection: estMoi ? 'row-reverse' : 'row', gap: 7, alignItems: 'flex-end' }}>
+                    <div key={msg.id || idx} className={`chat-bubble-row${estMoi ? ' mine' : ''}`}>
                       {!estMoi && (
-                        <div style={{
-                          width: 26, height: 26, borderRadius: '50%',
-                          background: color + '22', border: `1.5px solid ${color}`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.62rem', fontWeight: 700, color,
-                          flexShrink: 0,
-                        }}>
+                        <div className="chat-avatar small" style={{ borderColor: color, color }}>
                           {(msg.auteur_nom || '?').charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <div style={{ maxWidth: '78%' }}>
+                      <div className="chat-bubble-wrap">
                         {!estMoi && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
-                            <span style={{ fontSize: '0.68rem', color, fontWeight: 600 }}>{msg.auteur_nom}</span>
+                          <div className="chat-bubble-meta">
+                            <span style={{ color }}>{msg.auteur_nom}</span>
                             <RoleTag role={msg.auteur_role} />
                           </div>
                         )}
-                        <div style={{
-                          background: estMoi
-                            ? 'linear-gradient(135deg, #2563eb, #7c3aed)'
-                            : 'rgba(255,255,255,0.06)',
-                          color: estMoi ? '#fff' : '#e2e8f0',
-                          borderRadius: estMoi ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                          padding: '7px 12px', fontSize: '0.82rem', lineHeight: 1.5,
-                          wordBreak: 'break-word',
-                        }}>
-                          {msg.contenu}
-                        </div>
-                        <div style={{ fontSize: '0.6rem', color: '#475569', marginTop: 2, textAlign: estMoi ? 'right' : 'left' }}>
-                          {msg.date_envoi ? new Date(msg.date_envoi).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        <div className={`chat-bubble${estMoi ? ' mine' : ''}`}>{msg.contenu}</div>
+                        <div className="chat-bubble-time">
+                          {formatDateTimeTN(msg.date_envoi)}
                         </div>
                       </div>
                     </div>
@@ -382,48 +379,27 @@ export default function ChatWidget() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Saisie */}
-              <form onSubmit={envoyerMessage} style={{ padding: '8px 12px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 8, alignItems: 'center' }}>
+              {erreurEnvoi && (
+                <div className="chat-error" role="alert">{erreurEnvoi}</div>
+              )}
+
+              <form className="chat-form" onSubmit={envoyerMessage}>
                 <input
                   ref={inputRef}
                   value={saisie}
-                  onChange={e => setSaisie(e.target.value)}
-                  placeholder={canal === 'public' ? "Message au canal public…" : `Message privé à ${canal.username || ''}…`}
+                  onChange={e => { setSaisie(e.target.value); if (erreurEnvoi) setErreurEnvoi(''); }}
+                  placeholder={canal === 'public' ? 'Message au canal public…' : `Message à ${canal.username || ''}…`}
                   maxLength={500}
-                  style={{
-                    flex: 1, background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 10, padding: '7px 11px',
-                    color: '#f1f5f9', fontSize: '0.82rem', outline: 'none',
-                  }}
-                  onFocus={e  => { e.target.style.borderColor = '#2563eb'; }}
-                  onBlur={e   => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                  className="chat-input"
                 />
-                <button
-                  type="submit"
-                  disabled={!saisie.trim() || envoi}
-                  style={{
-                    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                    background: saisie.trim() ? 'linear-gradient(135deg, #2563eb, #7c3aed)' : 'rgba(255,255,255,0.06)',
-                    border: 'none', cursor: saisie.trim() ? 'pointer' : 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'background 0.2s',
-                  }}
-                >
-                  <Send size={14} color={saisie.trim() ? '#fff' : '#475569'} />
+                <button type="submit" className="chat-send-btn" disabled={!saisie.trim() || envoi} aria-label="Envoyer">
+                  <Send size={14} />
                 </button>
               </form>
             </>
           )}
         </div>
       )}
-
-      <style>{`
-        @keyframes slideUpChat {
-          from { opacity: 0; transform: translateY(20px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
     </>
   );
 }

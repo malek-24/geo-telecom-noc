@@ -9,7 +9,7 @@ Document de travail pour comprendre et présenter le projet technique. Il décri
 
 ## 1. Vue d’ensemble
 
-Le projet est une plateforme de supervision : des antennes (données géographiques et métier) sont stockées dans **PostgreSQL/PostGIS** ; une **API Flask** expose ces données en **JSON** ; un **tableau de bord React** affiche cartes, indicateurs et alertes ; des services SIG (**GeoServer**, **GeoNetwork**) complètent la chaîne pour publication et métadonnées.
+Le projet est une plateforme de supervision : des antennes (données géographiques et métier) sont stockées dans **PostgreSQL/PostGIS** ; une **API Flask** expose ces données en **JSON** ; un **tableau de bord React** affiche cartes, indicateurs et alertes ; **GeoServer** publie les couches WMS/WFS pour la carte Leaflet.
 
 - **Données :** tables `antennes` + `mesures`, vues pour le dashboard et GeoServer.
 - **Temps quasi réel :** le frontend interroge l’API toutes les **60 secondes** (polling).
@@ -36,9 +36,8 @@ Le fichier `docker-compose.yml` lance l’écosystème complet.
 - **postgres :** PostGIS, base applicative `antennes_mahdia` (données du dashboard).
 - **api :** conteneur Flask (Gunicorn), variable `DATABASE_URL` vers postgres.
 - **frontend :** build React puis nginx ; port hôte **3000** → port **80** du conteneur ; les appels API passent par **`/api`** proxifié vers Flask.
-- **geoserver :** couches cartographiques WMS/WFS ; URL web **http://localhost:8081/geoserver/web** (admin / geoserver).
-- **geonetwork** + **geonetwork_db** + **elasticsearch :** catalogue de métadonnées ; URL **http://localhost:8080/geonetwork/** (la racine `:8080` renvoie 404, c’est normal).
-- **grafana :** tableaux de bord optionnels sur le port **3001**.
+- **simulation :** génération MRRW des mesures + cycle IA interne.
+- **geoserver :** couches cartographiques WMS/WFS ; URL **http://localhost:8080/geoserver/web** (admin / geoserver).
 
 **Pourquoi `/api` côté navigateur ?** Dans Docker, le navigateur ne doit pas appeler `localhost:5000` pour joindre Flask dans un autre conteneur de la même façon en production. **Nginx** sert le site et redirige `/api/stats` vers le service `api`. La variable `REACT_APP_API_URL=/api` est fixée au **build** Docker du dashboard.
 
@@ -149,8 +148,7 @@ Peuple `antennes` avec des sites réalistes (contrainte côte / terre).
           ↓
 [Carte Leaflet + tableaux + KPI]
 
-Parallèle : antennes_geo → GeoServer → WMS/WFS
-            métadonnées → GeoNetwork + Elasticsearch
+Parallèle : antennes_geo → GeoServer → WMS/WFS (carte /map)
 ```
 
 ---

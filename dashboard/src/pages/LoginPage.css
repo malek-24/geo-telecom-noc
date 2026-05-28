@@ -85,13 +85,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
-  background: #eff6ff;
-  border: 2px solid rgba(37, 99, 235, 0.15);
-  border-radius: 18px;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
+  width: 72px;
+  height: 72px;
+  background: #fff;
+  border: 2px solid rgba(37, 99, 235, 0.12);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.14);
   margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.login-pfe-logo img {
+  display: block;
+  width: 52px;
+  height: 52px;
 }
 
 .login-pfe-badge {

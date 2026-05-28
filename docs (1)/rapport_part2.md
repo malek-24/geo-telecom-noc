@@ -8,14 +8,14 @@ Le Sprint 1 constitue le socle technique de la plateforme. L'objectif est de met
 
 | ID | Tâche | Priorité |
 |---|---|---|
-| T01 | Création de la structure Docker Compose (6 services) | Haute |
+| T01 | Création de la structure Docker Compose (5 services) | Haute |
 | T02 | Initialisation du schéma PostgreSQL/PostGIS (`init.sql`) | Haute |
 | T03 | API Flask — authentification JWT (`/auth/login`, `/auth/me`) | Haute |
 | T04 | API Flask — CRUD antennes (`/antennes`, `/antennes/<id>`) | Haute |
 | T05 | API Flask — gestion des incidents (`/incidents`) | Haute |
 | T06 | API Flask — endpoints dashboard (`/admin/users`) | Moyenne |
 | T07 | Seed initial : 120 antennes sur 9 zones de Mahdia | Haute |
-| T08 | Configuration GeoServer et GeoNetwork | Moyenne |
+| T08 | Configuration GeoServer (WMS/WFS) | Moyenne |
 
 ## 3.2 Analyse
 
@@ -102,7 +102,6 @@ services:
   simulation:  # Simulateur Python (schedule)  — interne
   frontend:    # React + Nginx                 — port 3000:80
   geoserver:   # GeoServer 2.25.2              — port 8080:8080
-  geonetwork:  # GeoNetwork 3.12.12            — port 8081:8080
 ```
 
 Tous les services partagent le réseau bridge `sig_net`. Le service `api` et `simulation` dépendent de `postgres` avec une vérification de santé (`pg_isready`).
@@ -281,7 +280,7 @@ dashboard/src/
 │   ├── Incidents.jsx         ← Gestion des incidents
 │   ├── Reports.jsx           ← Rapports PDF/Excel
 │   └── Admin.jsx             ← Administration utilisateurs
-└── platformUrls.js           ← URLs GeoServer, GeoNetwork, Grafana
+└── services/apiConfig.js     ← API_BASE_URL, authCfg (axios)
 ```
 
 ### Système RBAC Frontend

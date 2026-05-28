@@ -7,7 +7,6 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 
 from database.connection import connecter_base_de_donnees, rows_to_dicts
-from utils.globals import ADMIN_LOGS
 from auth.decorators import token_required, role_required
 from ia.prediction import finalize_incident_resolution
 
@@ -41,8 +40,10 @@ def list_incidents():
                 i.source_detection,
                 i.metriques,
                 i.duree_minutes,
-                to_char(i.date_creation, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_creation,
-                to_char(i.date_resolution, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_resolution
+                to_char((i.date_creation AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                    'YYYY-MM-DD"T"HH24:MI:SS') || '+01:00' AS date_creation,
+                to_char((i.date_resolution AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                    'YYYY-MM-DD"T"HH24:MI:SS') || '+01:00' AS date_resolution
             FROM incidents i
             JOIN antennes a ON i.antenne_id = a.id
             ORDER BY
@@ -79,8 +80,10 @@ def incident_details(incident_id):
                 i.source_detection,
                 i.metriques,
                 i.duree_minutes,
-                to_char(i.date_creation, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_creation,
-                to_char(i.date_resolution, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_resolution
+                to_char((i.date_creation AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                    'YYYY-MM-DD"T"HH24:MI:SS') || '+01:00' AS date_creation,
+                to_char((i.date_resolution AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                    'YYYY-MM-DD"T"HH24:MI:SS') || '+01:00' AS date_resolution
             FROM incidents i
             JOIN antennes a ON i.antenne_id = a.id
             WHERE i.id = %s
@@ -100,11 +103,12 @@ def incident_details(incident_id):
 @token_required
 def resolve_incident(incident_id):
     """
-    Marque l'incident résolu puis valide via Isolation Forest.
-    Recrée un incident si l'anomalie persiste. Historique des mesures conservé.
+    Marque l'incident résolu et remet l'antenne en état normal (intervention réussie).
+    Historique des mesures et incidents résolus conservé intégralement.
     """
     try:
-        result = finalize_incident_resolution(incident_id)
+        utilisateur = g.current_user.get("username", "système")
+        result = finalize_incident_resolution(incident_id, utilisateur=utilisateur)
         if result.get("error") == "Incident introuvable":
             return jsonify(result), 404
         if not result.get("success"):
@@ -178,7 +182,8 @@ def post_commentaire(incident_id):
         if etat_resolution in ('réglé', 'resolu'):
             conn.commit()
             cur.close(); conn.close()
-            resolution = finalize_incident_resolution(incident_id)
+            utilisateur = g.current_user.get("username", "système")
+            resolution = finalize_incident_resolution(incident_id, utilisateur=utilisateur)
             return jsonify({
                 "success": True,
                 "id": new_id,
@@ -215,7 +220,8 @@ def changer_etat_resolution(comment_id):
         conn.commit()
         cur.close(); conn.close()
         if row and nouvel_etat in ('réglé', 'resolu'):
-            resolution = finalize_incident_resolution(incident_id)
+            utilisateur = g.current_user.get("username", "système")
+            resolution = finalize_incident_resolution(incident_id, utilisateur=utilisateur)
             return jsonify({"success": True, "resolution": resolution})
         return jsonify({"success": True})
     except Exception as e:
@@ -308,7 +314,8 @@ def list_critical_alerts():
                 i.titre,
                 i.type_anomalie,
                 i.criticite,
-                to_char(i.date_creation, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_creation
+                to_char((i.date_creation AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                    'YYYY-MM-DD"T"HH24:MI:SS') || '+01:00' AS date_creation
             FROM incidents i
             JOIN antennes a ON i.antenne_id = a.id
             WHERE i.statut = 'en_cours'
@@ -340,7 +347,8 @@ def get_all_commentaires_en_attente():
         cur.execute("""
             SELECT c.id, c.incident_id, c.utilisateur_nom, c.role,
                    c.contenu, c.statut_validation, c.etat_resolution,
-                   to_char(c.date_creation, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date_creation,
+                   to_char((c.date_creation AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                       'YYYY-MM-DD"T"HH24:MI:SS') || '+01:00' AS date_creation,
                    i.titre AS incident_titre
             FROM commentaires_incidents c
             JOIN incidents i ON c.incident_id = i.id
@@ -364,7 +372,8 @@ def get_moderation_activity():
         cur.execute("""
             SELECT
                 i.id,
-                to_char(i.date_creation AT TIME ZONE 'Africa/Tunis', 'HH24:MI') AS time,
+                to_char((i.date_creation AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Tunis',
+                    'HH24:MI') AS time,
                 i.titre AS text,
                 i.criticite AS type,
                 a.nom AS antenne

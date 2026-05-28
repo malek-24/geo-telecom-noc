@@ -52,6 +52,25 @@ CREATE TABLE mesures (
 
 CREATE INDEX idx_mesures_antenne_date ON mesures(antenne_id, date_mesure DESC);
 
+-- ── TABLE: audit_logs ────────────────────────────────────────
+CREATE TABLE audit_logs (
+    id          SERIAL PRIMARY KEY,
+    utilisateur VARCHAR(100) NOT NULL,
+    action      VARCHAR(255) NOT NULL,
+    cible       VARCHAR(255),
+    date_action TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ── TABLE: historique_etats ──────────────────────────────────
+CREATE TABLE historique_etats (
+    id              SERIAL PRIMARY KEY,
+    antenne_id      INTEGER NOT NULL REFERENCES antennes(id) ON DELETE CASCADE,
+    ancien_etat     VARCHAR(30),
+    nouvel_etat     VARCHAR(30) NOT NULL,
+    date_changement TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_historique_antenne ON historique_etats(antenne_id, date_changement DESC);
+
 -- ── TABLE: incidents ─────────────────────────────────────────
 CREATE TABLE incidents (
     id               SERIAL PRIMARY KEY,

@@ -69,12 +69,12 @@ export default function LoginPage() {
         {/* ── PFE Header ── */}
         <div className="login-pfe-header">
           <div className="login-pfe-logo">
-            <Wifi size={28} color="#2563eb" strokeWidth={2.5} />
+            <img src={`${process.env.PUBLIC_URL}/logo-noc.svg`} alt="NOC Tunisie Télécom" width={48} height={48} />
           </div>
           <div className="login-pfe-badge">PROJET PFE</div>
           <h1 className="login-pfe-names">Malek Maadi &amp; Abir Said</h1>
           <p className="login-pfe-subtitle">
-            Plateforme intelligente de supervision réseau télécom basée IA &amp; SIG
+            NOC Tunisie Télécom — Gouvernorat de Mahdia
           </p>
         </div>
 
@@ -144,9 +144,9 @@ export default function LoginPage() {
             {/* Submit */}
             <button type="submit" className="login-submit-btn" disabled={loading}>
               {loading ? (
-                <><Loader size={16} className="login-spinner" /> Authentification…</>
+                <><Loader size={16} className="login-spinner" /> Authentification en cours…</>
               ) : (
-                "Se connecter"
+                <><Wifi size={16} /> Se connecter à la plateforme</>
               )}
             </button>
           </form>

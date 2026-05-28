@@ -23,6 +23,7 @@ import { API_BASE_URL } from "../services/apiConfig";
 const CLE_TOKEN = "geo_token";
 const CLE_USERNAME = "geo_username";
 const CLE_ROLE = "geo_role";
+const CLE_USER_ID = "geo_user_id";
 
 // Créer le contexte (sera rempli par AuthProvider)
 const AuthContext = createContext(null);
@@ -37,6 +38,10 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem(CLE_TOKEN));
   const [username, setUsername] = useState(localStorage.getItem(CLE_USERNAME));
   const [role, setRole] = useState(localStorage.getItem(CLE_ROLE));
+  const [userId, setUserId] = useState(() => {
+    const v = localStorage.getItem(CLE_USER_ID);
+    return v ? Number(v) : null;
+  });
 
   // Indicateur de chargement (pendant la vérification du token au démarrage)
   const [loading, setLoading] = useState(false);
@@ -63,15 +68,21 @@ export function AuthProvider({ children }) {
         // Mettre à jour les infos utilisateur depuis le serveur
         setUsername(donnees.username);
         setRole(donnees.role);
+        if (donnees.id != null) {
+          setUserId(Number(donnees.id));
+          localStorage.setItem(CLE_USER_ID, String(donnees.id));
+        }
       })
       .catch(() => {
         // Token invalide ou expiré → effacer la session
         localStorage.removeItem(CLE_TOKEN);
         localStorage.removeItem(CLE_USERNAME);
         localStorage.removeItem(CLE_ROLE);
+        localStorage.removeItem(CLE_USER_ID);
         setToken(null);
         setUsername(null);
         setRole(null);
+        setUserId(null);
       })
       .finally(() => {
         setLoading(false);
@@ -100,11 +111,14 @@ export function AuthProvider({ children }) {
     localStorage.setItem(CLE_TOKEN, donnees.token);
     localStorage.setItem(CLE_USERNAME, donnees.username);
     localStorage.setItem(CLE_ROLE, donnees.role);
+    if (donnees.id != null) {
+      localStorage.setItem(CLE_USER_ID, String(donnees.id));
+    }
 
-    // Mettre à jour l'état React (affichage immédiat)
     setToken(donnees.token);
     setUsername(donnees.username);
     setRole(donnees.role);
+    setUserId(donnees.id != null ? Number(donnees.id) : null);
 
     return donnees;
   }
@@ -114,13 +128,23 @@ export function AuthProvider({ children }) {
   // Efface le token du navigateur et remet l'état à zéro.
   // =============================================================
   function logout() {
+    const t = localStorage.getItem(CLE_TOKEN);
+    if (t) {
+      fetch(`${API_BASE_URL}/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${t}` },
+      }).catch(() => {});
+    }
+
     localStorage.removeItem(CLE_TOKEN);
     localStorage.removeItem(CLE_USERNAME);
     localStorage.removeItem(CLE_ROLE);
+    localStorage.removeItem(CLE_USER_ID);
 
     setToken(null);
     setUsername(null);
     setRole(null);
+    setUserId(null);
   }
 
   // =============================================================
@@ -130,6 +154,7 @@ export function AuthProvider({ children }) {
     token,
     username,
     role,
+    userId,
     loading,
     login,
     logout,

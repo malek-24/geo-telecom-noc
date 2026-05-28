@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ShieldCheck, CheckCircle2, Clock, AlertTriangle, XCircle,
   ChevronDown, ChevronUp, RefreshCw, MessageSquare, Wrench,
-  UserCheck, Activity, Wifi, Thermometer, Cpu, Zap
+  UserCheck, Activity, Wifi, Thermometer, Cpu, Zap, Download
 } from 'lucide-react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import { API_BASE_URL } from '../services/apiConfig';
+import { API_BASE_URL, authCfg } from '../services/apiConfig';
+import { downloadCsv } from '../services/exportCsv';
 import { useAuth } from '../auth/AuthContext';
-import { DATA_REFRESH_MS } from '../dataRefreshMs';
+import { REFRESH_MS } from '../dataRefreshMs';
+import { mergeById } from '../utils/silentRefresh';
+import { formatDateTimeTN, parseServerDate } from '../utils/dateTime';
 import './IncidentsPage.css';
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -33,7 +36,9 @@ const METRIC_UNITS = {
 
 function elapsedStr(d) {
   if (!d) return '—';
-  const ms = Date.now() - new Date(d).getTime();
+  const parsed = parseServerDate(d);
+  if (!parsed) return '—';
+  const ms = Date.now() - parsed.getTime();
   const h = Math.floor(ms / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);
   return h > 0 ? `${h}h ${m}min` : `${m} min`;
@@ -91,22 +96,40 @@ export default function IncidentsPage() {
   const [newEtat,   setNewEtat]   = useState('en_cours');
   const [sending,   setSending]   = useState(false);
   const [toast,     setToast]     = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const canResolve = ['administrateur', 'ingenieur_reseau'].includes(role);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      await downloadCsv(token, '/export/incidents', 'export_incidents.csv');
+    } catch (_) {
+      setToast({ type: 'warning', message: 'Erreur lors de l\'export CSV.' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const initialLoad = useRef(true);
 
   const fetchIncidents = useCallback(async () => {
     if (!token) return;
     try {
-      const r = await axios.get(`${API_BASE_URL}/incidents`,
-        { headers: { Authorization: `Bearer ${token}` } });
-      setIncidents(r.data);
+      const r = await axios.get(`${API_BASE_URL}/incidents`, authCfg(token));
+      setIncidents(prev => mergeById(prev, r.data));
     } catch (_) {}
-    finally { setLoading(false); }
+    finally {
+      if (initialLoad.current) {
+        setLoading(false);
+        initialLoad.current = false;
+      }
+    }
   }, [token]);
 
   useEffect(() => {
     fetchIncidents();
-    const id = setInterval(fetchIncidents, DATA_REFRESH_MS);
+    const id = setInterval(fetchIncidents, REFRESH_MS.incidents);
     return () => clearInterval(id);
   }, [fetchIncidents]);
 
@@ -126,7 +149,7 @@ export default function IncidentsPage() {
       const res = await axios.put(
         `${API_BASE_URL}/incidents/${id}/resolve`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        authCfg(token)
       );
 
       const data = res.data;
@@ -166,7 +189,7 @@ export default function IncidentsPage() {
   const loadComments = async (incId) => {
     try {
       const r = await axios.get(`${API_BASE_URL}/incidents/${incId}/commentaires`,
-        { headers: { Authorization: `Bearer ${token}` } });
+        authCfg(token));
       setComments(r.data);
     } catch (_) {}
   };
@@ -182,7 +205,7 @@ export default function IncidentsPage() {
     try {
       await axios.post(`${API_BASE_URL}/incidents/${incId}/commentaires`,
         { contenu: newComment, etat_resolution: newEtat },
-        { headers: { Authorization: `Bearer ${token}` } });
+        authCfg(token));
       setNewComment(''); setNewEtat('en_cours');
       await loadComments(incId);
       if (newEtat === 'réglé') await fetchIncidents();
@@ -247,13 +270,15 @@ export default function IncidentsPage() {
                   : <><ShieldCheck size={20} /> Gestion des Incidents</>
                 }
               </h1>
-              <p className="ip-subtitle">
-                Anomalies détectées automatiquement par le modèle <strong>Isolation Forest</strong>
-              </p>
             </div>
-            <button className="btn btn-secondary" onClick={fetchIncidents}>
-              <RefreshCw size={14} /> Actualiser
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="btn btn-secondary" onClick={handleExportCsv} disabled={exporting}>
+                <Download size={14} /> {exporting ? 'Export…' : 'Exporter CSV'}
+              </button>
+              <button className="btn btn-secondary" onClick={fetchIncidents}>
+                <RefreshCw size={14} /> Actualiser
+              </button>
+            </div>
           </div>
 
           {/* ── STATISTIQUES ── */}
@@ -331,10 +356,7 @@ export default function IncidentsPage() {
                       </span>
                       <span className="ip-time">
                         <Clock size={12} />
-                        {new Date(inc.date_creation).toLocaleString('fr-FR', {
-                          day: '2-digit', month: '2-digit',
-                          hour: '2-digit', minute: '2-digit'
-                        })}
+                        {formatDateTimeTN(inc.date_creation)}
                       </span>
                       {isOpen
                         ? <ChevronUp size={16} color="var(--text-light)" />
@@ -349,16 +371,18 @@ export default function IncidentsPage() {
 
                       {/* Informations générales */}
                       <div className="ip-info-grid">
-                        <div className="ip-info-box">
-                          <span className="ip-info-label">Description</span>
-                          <span className="ip-info-value">
-                            {inc.description || 'Analyse comportementale détectée par l\'IA.'}
-                          </span>
-                        </div>
-                        <div className="ip-info-box">
-                          <span className="ip-info-label">Source de détection</span>
-                          <span className="ip-info-value">{inc.source_detection || 'Isolation Forest'}</span>
-                        </div>
+                        {inc.description && (
+                          <div className="ip-info-box">
+                            <span className="ip-info-label">Description</span>
+                            <span className="ip-info-value">{inc.description}</span>
+                          </div>
+                        )}
+                        {inc.source_detection && (
+                          <div className="ip-info-box">
+                            <span className="ip-info-label">Source</span>
+                            <span className="ip-info-value">{inc.source_detection}</span>
+                          </div>
+                        )}
                         <div className="ip-info-box">
                           <span className="ip-info-label">Durée depuis détection</span>
                           <span className="ip-info-value">{elapsedStr(inc.date_creation)}</span>
@@ -430,7 +454,7 @@ export default function IncidentsPage() {
                                       </span>
                                     </span>
                                     <span className="ip-comment-date">
-                                      {c.date_creation?.substring(0, 16)?.replace('T', ' ')}
+                                      {formatDateTimeTN(c.date_creation)}
                                     </span>
                                   </div>
                                   <p className="ip-comment-text">{c.contenu}</p>

@@ -149,6 +149,17 @@
   font-size: 0.82rem;
 }
 
+.noc-table th.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.noc-table th.sortable-th:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .noc-table th {
   padding: 12px 14px;
   text-align: left;

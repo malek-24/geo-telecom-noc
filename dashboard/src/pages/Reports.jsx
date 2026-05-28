@@ -1,20 +1,20 @@
 import React, { useState, useCallback } from 'react';
 import {
   FileText, Download, FileCode,
-  BarChart2, Clock, CheckCircle2, Loader
+  BarChart2, CheckCircle2, Loader
 } from 'lucide-react';
 import axios from 'axios';
 
 import Sidebar from '../components/Sidebar';
-import { API_BASE_URL } from '../services/apiConfig';
+import { API_BASE_URL, authCfg } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
+import { downloadCsv } from '../services/exportCsv';
 import '../styles/ReportsStyles.css';
 
 const REPORTS = [
   {
     id: 'quotidien',
-    title: 'Rapport Quotidien NOC',
-    description: 'Résumé de l\'état du réseau : disponibilité, incidents actifs, métriques clés.',
+    title: 'Rapport quotidien NOC',
     icon: <FileText size={24} color="var(--accent)" />,
     endpoint: '/rapport/quotidien',
     filename: 'rapport_quotidien.pdf',
@@ -22,8 +22,7 @@ const REPORTS = [
   },
   {
     id: 'incidents',
-    title: 'Rapport des Incidents',
-    description: 'Liste complète des incidents détectés, leur criticité et leur statut de résolution.',
+    title: 'Rapport incidents',
     icon: <BarChart2 size={24} color="var(--danger)" />,
     endpoint: '/rapport/incidents',
     filename: 'rapport_incidents.pdf',
@@ -31,8 +30,7 @@ const REPORTS = [
   },
   {
     id: 'antennes',
-    title: 'Export des Antennes (Excel)',
-    description: 'Données techniques complètes de tous les 127 sites (CPU, température, latence, etc.).',
+    title: 'Export antennes (Excel)',
     icon: <FileCode size={24} color="var(--success)" />,
     endpoint: '/rapport/antennes/excel',
     filename: 'antennes_export.xlsx',
@@ -41,8 +39,7 @@ const REPORTS = [
   },
   {
     id: 'ia',
-    title: 'Rapport Analyse IA',
-    description: 'Résultats de l\'algorithme Isolation Forest : anomalies détectées et scores de risque.',
+    title: 'Rapport analyse IA',
     icon: <FileCode size={24} color="#7c3aed" />,
     endpoint: '/rapport/ia',
     filename: 'rapport_ia.pdf',
@@ -54,12 +51,24 @@ export default function RapportsPage() {
   const { token } = useAuth();
   const [downloading, setDownloading] = useState(null);
   const [done, setDone] = useState({});
+  const [exportingCsv, setExportingCsv] = useState(false);
+
+  const handleExportMesuresCsv = async () => {
+    setExportingCsv(true);
+    try {
+      await downloadCsv(token, '/export/mesures', 'export_mesures.csv');
+    } catch (_) {
+      alert('Erreur export CSV mesures.');
+    } finally {
+      setExportingCsv(false);
+    }
+  };
 
   const download = useCallback(async (report) => {
     setDownloading(report.id);
     try {
       const res = await axios.get(`${API_BASE_URL}${report.endpoint}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        ...authCfg(token),
         responseType: 'blob',
       });
 
@@ -92,17 +101,16 @@ export default function RapportsPage() {
           {/* ── HEADER ── */}
           <div className="page-header">
             <div className="page-header-left">
-              <h1><FileText size={22} color="var(--accent)" /> Centre de Rapports NOC</h1>
-              <p>Génération et export de rapports opérationnels au format PDF et Excel</p>
+              <h1><FileText size={22} color="var(--accent)" /> Rapports NOC</h1>
             </div>
-          </div>
-
-          {/* ── INFO BANNER ── */}
-          <div className="reports-banner">
-            <Clock size={16} color="var(--info)" />
-            <span>
-              Les rapports sont générés dynamiquement à partir des données en temps réel de la base de données.
-            </span>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleExportMesuresCsv}
+              disabled={exportingCsv}
+            >
+              <Download size={16} /> {exportingCsv ? 'Export…' : 'Exporter CSV'}
+            </button>
           </div>
 
           {/* ── REPORT CARDS ── */}
@@ -122,7 +130,6 @@ export default function RapportsPage() {
                       </span>
                     </div>
                     <h3 className="report-card-title">{report.title}</h3>
-                    <p className="report-card-desc">{report.description}</p>
                   </div>
                   <button
                     className={`btn ${isDone ? 'btn-success' : 'btn-primary'}`}
@@ -140,17 +147,6 @@ export default function RapportsPage() {
                 </div>
               );
             })}
-          </div>
-
-          {/* ── NOTE ACADÉMIQUE ── */}
-          <div className="panel" style={{ background: 'var(--accent-soft)', border: '1px solid rgba(37,99,235,0.15)' }}>
-            <h3 className="panel-title"><BarChart2 size={16} /> Note sur le Reporting</h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-              Les rapports PDF sont générés par <strong>ReportLab</strong> (bibliothèque Python) côté backend.
-              L'export Excel utilise <strong>openpyxl</strong> pour produire des fichiers .xlsx compatibles
-              avec Microsoft Excel et LibreOffice. Tous les rapports contiennent un en-tête Tunisie Télécom
-              et reflètent l'état du réseau au moment de la génération.
-            </p>
           </div>
 
         </div>

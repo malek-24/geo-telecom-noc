@@ -176,10 +176,10 @@ ul li::before{content:"▶";position:absolute;left:0;color:#60a5fa;font-size:.7r
 │     (port 6000)      │
 └───┬──────────────────┘
     │
-┌───▼────────┐  ┌────────────────┐
-│ GeoServer  │  │  GeoNetwork    │
-│  (:8080)   │  │   (:8081)      │
-└────────────┘  └────────────────┘
+┌───▼────────┐
+│ GeoServer  │
+│  (:8080)   │
+└────────────┘
     </div>
     <div>
       <table>
@@ -189,7 +189,6 @@ ul li::before{content:"▶";position:absolute;left:0;color:#60a5fa;font-size:.7r
         <tr><td>simulation</td><td>—</td><td>Métriques IoT</td></tr>
         <tr><td>frontend</td><td>3000</td><td>React/Nginx</td></tr>
         <tr><td>geoserver</td><td>8080</td><td>WMS/WFS</td></tr>
-        <tr><td>geonetwork</td><td>8081</td><td>Catalogue SIG</td></tr>
       </table>
       <div class="card" style="margin-top:1rem">
         <h4>1 commande pour tout démarrer :</h4>
@@ -365,8 +364,8 @@ ul li::before{content:"▶";position:absolute;left:0;color:#60a5fa;font-size:.7r
     </tr>
     <tr>
       <td class="good">Rapports PDF + Excel automatisés</td>
-      <td class="warn">GeoNetwork partiellement intégré</td>
-      <td>Catalogue ISO 19115 complet</td>
+      <td class="warn">Pas de catalogue ISO 19115</td>
+      <td>Extension catalogue métadonnées</td>
     </tr>
   </table>
 </div>

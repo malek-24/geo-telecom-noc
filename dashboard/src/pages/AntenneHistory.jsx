@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import { API_BASE_URL } from '../services/apiConfig';
+import { API_BASE_URL, authCfg } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
 import '../styles/HistoryStyles.css';
 
@@ -93,13 +93,14 @@ export default function AntennaHistoryPage() {
   const [antenne,   setAntenne]   = useState(null);
   const [mesures,   setMesures]   = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [historiqueEtats, setHistoriqueEtats] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState(null);
 
   /* ── Fetch data ── */
   const fetchAll = useCallback(async () => {
     if (!token) return;
-    const cfg = { headers: { Authorization: `Bearer ${token}` } };
+    const cfg = authCfg(token);
     try {
       // Antenne info
       const antRes = await axios.get(`${API_BASE_URL}/antennes/${id}`, cfg);
@@ -132,6 +133,12 @@ export default function AntennaHistoryPage() {
         const iRes = await axios.get(`${API_BASE_URL}/antennes/${id}/incidents?limit=10`, cfg);
         setIncidents(iRes.data || []);
       } catch { setIncidents([]); }
+
+      // Historique des états
+      try {
+        const hRes = await axios.get(`${API_BASE_URL}/antennes/${id}/historique`, cfg);
+        setHistoriqueEtats(hRes.data || []);
+      } catch { setHistoriqueEtats([]); }
 
     } catch (err) {
       setError('Impossible de charger les données de cette antenne.');
@@ -366,6 +373,36 @@ export default function AntennaHistoryPage() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          {/* ── HISTORIQUE DES ÉTATS ── */}
+          <div className="hist-incidents-card">
+            <h2 className="hist-section-title">
+              <Activity size={16} color="#6366f1" /> Historique des états ({historiqueEtats.length})
+            </h2>
+            {historiqueEtats.length === 0 ? (
+              <div className="hist-empty">
+                <Info size={24} color="#94a3b8" />
+                <p>Aucune transition d&apos;état enregistrée.</p>
+              </div>
+            ) : (
+              <div className="hist-incidents-list">
+                {historiqueEtats.map((h, idx) => {
+                  const st = STATUS_STYLE[h.nouveau] || STATUS_STYLE.normal;
+                  return (
+                    <div key={idx} className="hist-incident-row">
+                      <div className="hist-incident-dot" style={{ background: st.color }} />
+                      <div className="hist-incident-body">
+                        <div className="hist-incident-title">
+                          {(h.ancien || 'normal').toUpperCase()} → {(h.nouveau || '—').toUpperCase()}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{fmt(h.date)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* ── INCIDENTS ── */}

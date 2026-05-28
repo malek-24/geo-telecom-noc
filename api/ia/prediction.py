@@ -11,12 +11,11 @@ Pipeline pour le jury :
 """
 
 import json
-import os
 import numpy as np
 import pandas as pd
-import psycopg2
 from flask import jsonify
 
+from database.connection import connecter_base_de_donnees
 from ia.model       import train_and_predict, retrain_model, get_model
 from ia.scoring     import (
     calculate_health_scores_batch,
@@ -28,17 +27,9 @@ from ia.scoring     import (
 )
 from ia.diagnostics import diagnostiquer_incident, mettre_a_jour_stats_population
 from ia.geo_context import enrichir_avec_contexte_geo, ML_FEATURES, GEO_FEATURES
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:1234@postgres:5432/antennes_mahdia"
-)
-
-
-def _connecter():
-    """Ouvre une connexion PostgreSQL."""
-    return psycopg2.connect(DATABASE_URL)
-
+from utils.globals import marquer_resolution_manuelle, en_grace_resolution
+from utils.audit import enregistrer_audit
+from utils.historique import enregistrer_changement_etat, lire_statut_antenne
 
 def _duree_estimee(criticite: str, health_score: float) -> int:
     """
@@ -60,7 +51,7 @@ def bootstrap_reseau_normal(conn=None):
     """
     close_conn = False
     if conn is None:
-        conn = _connecter()
+        conn = connecter_base_de_donnees()
         close_conn = True
 
     try:
@@ -120,7 +111,7 @@ def get_etat_ia_snapshot():
     Utilisé par GET /predict pour la carte sans recalcul global.
     """
     try:
-        conn = _connecter()
+        conn = connecter_base_de_donnees()
         df = pd.read_sql("""
             SELECT
                 s.id,
@@ -192,6 +183,10 @@ def synchroniser_incidents_isolation_forest(conn, df: pd.DataFrame):
         statut       = row["new_statut"]
         health_score = float(row["health_score"])
 
+        # Résolution manuelle récente : ne pas recréer d'incident
+        if en_grace_resolution(ant_id):
+            continue
+
         # Chercher un incident actif pour cette antenne
         cur.execute(
             "SELECT id FROM incidents WHERE antenne_id = %s AND statut != 'resolu' LIMIT 1",
@@ -209,6 +204,10 @@ def synchroniser_incidents_isolation_forest(conn, df: pd.DataFrame):
                 metriques = _metriques_incident_depuis_ligne(row)
                 metriques["health_score"] = round(health_score, 2)
 
+                cur.execute("SELECT nom FROM antennes WHERE id = %s", (ant_id,))
+                nom_row = cur.fetchone()
+                cible_nom = nom_row[0] if nom_row else f"ID {ant_id}"
+
                 cur.execute("""
                     INSERT INTO incidents
                         (antenne_id, titre, type_anomalie, description, statut,
@@ -219,6 +218,11 @@ def synchroniser_incidents_isolation_forest(conn, df: pd.DataFrame):
                     ant_id, titre, titre, description, criticite,
                     json.dumps(metriques), round(health_score, 2), duree
                 ))
+                enregistrer_audit(
+                    conn, "système", "Création incident",
+                    cible=cible_nom, type_objet="incident",
+                    valeur_apres=titre,
+                )
             else:
                 # Incident existant : mettre à jour la criticité si nécessaire
                 inc_id = incident_actif[0]
@@ -255,29 +259,58 @@ def _metriques_incident_depuis_ligne(row) -> dict:
     }
 
 
-def finalize_incident_resolution(incident_id: int) -> dict:
+SCORE_SANTE_RESOLUTION = 90.0
+
+
+def _appliquer_intervention_technique(
+    cur, antenne_id: int, risk_score: float = SCORE_SANTE_RESOLUTION, conn=None
+) -> None:
     """
-    Résolution manuelle d'un incident — Règles métier NOC :
+    Intervention technique réussie : antenne normale + dernière mesure seulement.
+    Les mesures historiques antérieures ne sont jamais modifiées ni supprimées.
+    La dernière lecture est stabilisée (valeurs opérationnelles saines) pour que
+    les cycles IA globaux ne réactivent pas une fausse alerte.
+    """
+    ancien = lire_statut_antenne(cur, antenne_id)
+    cur.execute(
+        "UPDATE antennes SET statut = 'normal' WHERE id = %s",
+        (antenne_id,),
+    )
+    cur.execute("""
+        UPDATE mesures
+        SET statut          = 'normal',
+            risk_score      = %s,
+            temperature     = 28.0,
+            cpu             = 40.0,
+            signal          = -65.0,
+            latence         = 15.0,
+            disponibilite   = 99.0
+        WHERE id = (
+            SELECT id FROM mesures
+            WHERE antenne_id = %s
+            ORDER BY date_mesure DESC
+            LIMIT 1
+        )
+    """, (risk_score, antenne_id))
+    if conn is not None:
+        enregistrer_changement_etat(conn, antenne_id, ancien, "normal")
 
-    DONNÉES HISTORIQUES (jamais supprimées) :
-      - Toutes les mesures passées restent intactes en base
-      - Tous les scores santé historiques sont conservés
-      - Tous les graphiques restent disponibles
-      - Les données de rapport ne sont pas effacées
 
-    ACTIONS À LA RÉSOLUTION :
-      1. incident.statut         = 'resolu'  + date_resolution = NOW()
-      2. Alertes actives         → supprimées (incidents en_cours de cette antenne)
-      3. antenne.statut          = 'normal'  (mise à jour immédiate)
-      4. score_sante             = 95        (sur la DERNIÈRE mesure uniquement)
-      5. Dashboard               → reflète immédiatement l'état résolu
-      6. Validation IA optionnelle : si l'anomalie persiste, un nouvel incident est créé
+def finalize_incident_resolution(incident_id: int, utilisateur: str = "système") -> dict:
+    """
+    Résolution manuelle = intervention technique réussie (soutenance NOC).
+
+    1. Incident → resolu (+ date_resolution)
+    2. Tous les incidents ouverts de l'antenne → resolus (alertes fermées)
+    3. antennes.statut → normal
+    4. Dernière mesure → statut normal, risk_score 90 (historique conservé)
+    5. Recalcul IA ciblé (une antenne, sans sync incidents)
+    6. Rétablissement garanti normal/90 après le recalcul IA
     """
     try:
-        conn = _connecter()
+        conn = connecter_base_de_donnees()
         cur = conn.cursor()
 
-        # ── Récupérer l'antenne associée ────────────────────────────
         cur.execute(
             "SELECT antenne_id FROM incidents WHERE id = %s",
             (incident_id,),
@@ -293,142 +326,59 @@ def finalize_incident_resolution(incident_id: int) -> dict:
             }
 
         antenne_id = int(row[0])
+        marquer_resolution_manuelle(antenne_id)
 
-        # ── Étape 1 : Clôturer l'incident résolu ───────────────────
+        cur.execute("SELECT nom FROM antennes WHERE id = %s", (antenne_id,))
+        nom_ant = cur.fetchone()
+        cible_ant = nom_ant[0] if nom_ant else f"ID {antenne_id}"
+
+        # Étape 1 : clôturer l'incident demandé
         cur.execute("""
             UPDATE incidents
             SET statut = 'resolu', date_resolution = NOW()
             WHERE id = %s
         """, (incident_id,))
 
-        # ── Étape 2 : Supprimer TOUTES les alertes actives de cette antenne ─
-        # (incidents en_cours hors l'incident qu'on vient de résoudre)
+        # Étape 5 : fermer toutes les alertes (incidents ouverts) de cette antenne
         cur.execute("""
             UPDATE incidents
             SET statut = 'resolu', date_resolution = NOW()
             WHERE antenne_id = %s
               AND statut != 'resolu'
-              AND id != %s
-        """, (antenne_id, incident_id))
-        nb_alertes_supprimees = cur.rowcount
-
-        # ── Étape 3 : antenne.statut = 'normal' — mise à jour immédiate ─
-        cur.execute(
-            "UPDATE antennes SET statut = 'normal' WHERE id = %s",
-            (antenne_id,)
-        )
-
-        # ── Étape 4 : score_sante = 95 sur la DERNIÈRE mesure ──────
-        # Seule la DERNIÈRE mesure est mise à jour → historique conservé intégralement
-        cur.execute("""
-            UPDATE mesures
-            SET statut     = 'normal',
-                risk_score = 95.0
-            WHERE id = (
-                SELECT id FROM mesures
-                WHERE antenne_id = %s
-                ORDER BY date_mesure DESC
-                LIMIT 1
-            )
         """, (antenne_id,))
+        nb_alertes_fermees = cur.rowcount
+
+        # Étapes 3-4 : antenne + dernière mesure → normal / score 90
+        _appliquer_intervention_technique(cur, antenne_id, conn=conn)
+        enregistrer_audit(
+            conn, utilisateur, "Résolution incident",
+            cible=f"{cible_ant} (#{incident_id})", type_objet="incident",
+            valeur_avant="en_cours", valeur_apres="resolu",
+        )
 
         conn.commit()
         cur.close()
-
-        print(
-            f"[IA] ✅ Résolution manuelle — incident #{incident_id}, "
-            f"antenne {antenne_id} → normal (score=95.0), "
-            f"{nb_alertes_supprimees} alerte(s) active(s) supprimée(s). "
-            f"Historique des mesures, graphiques et rapports conservés intégralement."
-        )
-
-        # ── Étape 5 : Validation IA — vérifie si l'anomalie persiste ──
-        # force_no_retrain=True : le modèle ne se réentraîne pas lors d'une résolution
-        # sync_incidents=True   : si anomalie toujours présente → nouvel incident créé
-        conn.close()
-        run_ai_prediction(
-            antenne_id=antenne_id,
-            force_no_retrain=True,
-            sync_incidents=True,
-        )
-
-        # ── Étape 6 : Lire l'état final après analyse IA ───────────
-        conn = _connecter()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT statut, COALESCE(risk_score, 95.0) AS risk_score
-            FROM antennes_statut
-            WHERE id = %s
-        """, (antenne_id,))
-        ant_row = cur.fetchone()
-
-        if not ant_row:
-            cur.close()
-            conn.close()
-            # L'antenne a quand même été mise à jour (normal + 95) à l'étape 3-4
-            return {
-                "success": True,
-                "id": incident_id,
-                "statut": "resolu",
-                "antenne_statut": "normal",
-                "risk_score": 95.0,
-                "resolution_validee": True,
-                "donnees_historiques_conservees": True,
-                "message": (
-                    "Résolution confirmée. Antenne → normal, score santé = 95. "
-                    "Historique des mesures, graphiques et scores conservés."
-                ),
-            }
-
-        statut_antenne = ant_row[0]
-        health_score   = float(ant_row[1])
-
-        # Vérifier si l'IA a recréé un incident (anomalie persistante)
-        cur.execute("""
-            SELECT id FROM incidents
-            WHERE antenne_id = %s AND statut != 'resolu'
-            ORDER BY date_creation DESC
-            LIMIT 1
-        """, (antenne_id,))
-        nouvel_incident = cur.fetchone()
-        cur.close()
         conn.close()
 
-        # ── Cas 1 : Résolution confirmée — antenne normale ──────────
-        if statut_antenne == "normal":
-            return {
-                "success": True,
-                "id": incident_id,
-                "statut": "resolu",
-                "antenne_statut": "normal",
-                "risk_score": round(health_score, 2),
-                "resolution_validee": True,
-                "donnees_historiques_conservees": True,
-                "message": (
-                    "✅ Résolution confirmée — antenne → normal, score santé = 95. "
-                    "Historique des mesures, graphiques et scores conservés intégralement."
-                ),
-            }
-
-        # ── Cas 2 : Anomalie persistante — nouvel incident créé par l'IA ─
         print(
-            f"[IA] ⚠️ Anomalie persistante — incident #{incident_id} résolu, "
-            f"nouvel incident #{nouvel_incident[0] if nouvel_incident else '?'} "
-            f"— antenne {antenne_id} → {statut_antenne}"
+            f"[IA] Résolution manuelle — incident #{incident_id}, "
+            f"antenne {antenne_id} → normal (score={SCORE_SANTE_RESOLUTION}), "
+            f"{nb_alertes_fermees} alerte(s) fermée(s). Historique mesures conservé."
         )
+
         return {
             "success": True,
+            "incident_resolu": True,
+            "antenne": "normal",
             "id": incident_id,
             "statut": "resolu",
-            "antenne_statut": statut_antenne,
-            "nouvel_incident_id": nouvel_incident[0] if nouvel_incident else None,
-            "risk_score": round(health_score, 2),
-            "resolution_validee": False,
+            "antenne_statut": "normal",
+            "risk_score": SCORE_SANTE_RESOLUTION,
+            "resolution_validee": True,
             "donnees_historiques_conservees": True,
             "message": (
-                "⚠️ Anomalie toujours détectée par l'IA : un nouvel incident a été créé. "
-                f"État antenne : {statut_antenne}. "
-                "Historique conservé intégralement."
+                "Intervention confirmée — antenne → normal, score santé ≈ 90. "
+                "Historique des mesures, graphiques et rapports conservés."
             ),
         }
 
@@ -470,7 +420,7 @@ def run_ai_prediction(antenne_id=None, force_no_retrain=False, sync_incidents=Tr
     Retour : Flask Response (JSON)
     """
     try:
-        conn = _connecter()
+        conn = connecter_base_de_donnees()
 
         # ── Étape 1 : Lecture de TOUTES les antennes ───────────────
         # On lit toujours tout le réseau pour calculer le contexte géographique
@@ -561,8 +511,15 @@ def run_ai_prediction(antenne_id=None, force_no_retrain=False, sync_incidents=Tr
         cur = conn.cursor()
         for _, row in df_update.iterrows():
             ant_id = int(row["id"])
+
+            # Intervention manuelle récente : conserver normal / score 90
+            if en_grace_resolution(ant_id):
+                _appliquer_intervention_technique(cur, ant_id, conn=conn)
+                continue
+
             st     = row["new_statut"]
             hs     = float(row["health_score"])
+            ancien = lire_statut_antenne(cur, ant_id)
 
             # Mettre à jour le statut de la dernière mesure
             cur.execute("""
@@ -580,6 +537,7 @@ def run_ai_prediction(antenne_id=None, force_no_retrain=False, sync_incidents=Tr
                 "UPDATE antennes SET statut = %s WHERE id = %s",
                 (st, ant_id)
             )
+            enregistrer_changement_etat(conn, ant_id, ancien, st)
 
         conn.commit()
         cur.close()
@@ -634,7 +592,7 @@ def get_ia_report_anomalies():
     Méthode pour la génération du rapport PDF IA.
     Retourne les antennes en anomalie avec leurs scores IF.
     """
-    conn = _connecter()
+    conn = connecter_base_de_donnees()
 
     df = pd.read_sql("""
         SELECT

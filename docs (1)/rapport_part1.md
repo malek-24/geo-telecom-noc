@@ -276,11 +276,10 @@ Ce chapitre couvre la phase d'analyse et de préparation : identification des be
 | Docker | 24+ | Conteneurisation des services |
 | Docker Compose | 2.x | Orchestration multi-conteneurs |
 | GeoServer | 2.25.2 | Serveur cartographique WMS/WFS |
-| GeoNetwork | 3.12.12 | Catalogue de métadonnées géographiques |
 
 ## 2.4 Architecture globale
 
-La plateforme repose sur une architecture **microservices conteneurisée** composée de 6 services Docker interconnectés via un réseau bridge interne (`sig_net`) :
+La plateforme repose sur une architecture **microservices conteneurisée** composée de **5 services Docker** interconnectés via un réseau bridge interne (`sig_net`) :
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -302,7 +301,6 @@ La plateforme repose sur une architecture **microservices conteneurisée** compo
             │
 ┌───────────▼──────────┐
 │ GeoServer :8080      │
-│ GeoNetwork :8081     │
 └──────────────────────┘
 ```
 

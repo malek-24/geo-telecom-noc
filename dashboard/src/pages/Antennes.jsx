@@ -5,17 +5,20 @@
  *   - Supprimer          : administrateur uniquement
  *   - Consulter          : tous les rôles
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RadioTower, Search, Filter, Plus, Edit2, Trash2,
-  X, CheckCircle2, AlertTriangle, Activity, MapPin, Save, Loader
+  X, CheckCircle2, AlertTriangle, Activity, MapPin, Save, Loader, Download
 } from 'lucide-react';
+import { downloadCsv } from '../services/exportCsv';
 import axios from 'axios';
 import Sidebar from '../components/Sidebar';
-import { API_BASE_URL } from '../services/apiConfig';
+import { API_BASE_URL, authCfg } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';
-import { DATA_REFRESH_MS } from '../dataRefreshMs';
+import { REFRESH_MS } from '../dataRefreshMs';
+import { mergeById } from '../utils/silentRefresh';
 import '../styles/EquipmentsStyles.css';
+import { TABLE_COLUMNS, sortAntennas, filterAntennas } from '../utils/antennaTable';
 
 // Zones disponibles à Mahdia
 const ZONES_MAHDIA = [
@@ -61,54 +64,54 @@ export default function EquipmentsPage() {
 
   const peutEditer    = ['administrateur', 'ingenieur_reseau'].includes(role);
   const peutSupprimer = role === 'administrateur';
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      await downloadCsv(token, '/export/antennes', 'export_antennes.csv');
+    } catch (_) {
+      alert('Erreur lors de l\'export CSV.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // ── Récupération des antennes ───────────────────────────────
+  const initialLoad = useRef(true);
+
   const fetchAntennes = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get(`${API_BASE_URL}/antennes`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAntennes(res.data);
+      const res = await axios.get(`${API_BASE_URL}/antennes`, authCfg(token));
+      setAntennes(prev => mergeById(prev, res.data));
     } catch (_) {}
-    finally { setLoading(false); }
+    finally {
+      if (initialLoad.current) {
+        setLoading(false);
+        initialLoad.current = false;
+      }
+    }
   }, [token]);
 
   useEffect(() => {
     fetchAntennes();
-    const id = setInterval(fetchAntennes, DATA_REFRESH_MS);
+    const id = setInterval(fetchAntennes, REFRESH_MS.antennes);
     return () => clearInterval(id);
   }, [fetchAntennes]);
 
-  // ── Filtrage + tri ──────────────────────────────────────────
-  const STATUS_ORDER = { critique: 0, alerte: 1, maintenance: 2, normal: 3, en_attente: 4 };
-
-  const antFiltrees = antennes
-    .filter(a => {
-      const ok1 = !search || a.nom?.toLowerCase().includes(search.toLowerCase()) || a.zone?.toLowerCase().includes(search.toLowerCase());
-      const ok2 = !filterZone   || a.zone   === filterZone;
-      const ok3 = !filterStatut || a.statut === filterStatut;
-      return ok1 && ok2 && ok3;
-    })
-    .sort((a, b) => {
-      let va, vb;
-      if (sortKey === 'statut')     { va = STATUS_ORDER[a.statut] ?? 9; vb = STATUS_ORDER[b.statut] ?? 9; }
-      else if (sortKey === 'nom')   { va = (a.nom   || '').toLowerCase(); vb = (b.nom   || '').toLowerCase(); }
-      else if (sortKey === 'zone')  { va = (a.zone  || '').toLowerCase(); vb = (b.zone  || '').toLowerCase(); }
-      else if (sortKey === 'score') { va = Number(a.risk_score  || 0); vb = Number(b.risk_score  || 0); }
-      else if (sortKey === 'temp')  { va = Number(a.temperature || 0); vb = Number(b.temperature || 0); }
-      else { va = 0; vb = 0; }
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ?  1 : -1;
-      return 0;
-    });
+  const antFiltrees = sortAntennas(
+    filterAntennas(antennes, { search, filterZone, filterStatut }),
+    sortKey,
+    sortDir
+  );
 
   const toggleSort = (key) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortKey(key); setSortDir('asc'); }
   };
 
-  const sortIcon = (key) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ⇅';
+  const sortIcon = (key) => (sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ⇅');
 
   const zones   = [...new Set(antennes.map(a => a.zone).filter(Boolean))].sort();
   const statuts = ['normal', 'alerte', 'critique', 'maintenance'];
@@ -160,13 +163,12 @@ export default function EquipmentsPage() {
 
     setSaving(true); setErrForm('');
     try {
-      const headers = { Authorization: `Bearer ${token}` };
       const payload = { ...form, latitude: parseFloat(form.latitude), longitude: parseFloat(form.longitude) };
 
       if (modEdition) {
-        await axios.put(`${API_BASE_URL}/antennes/${modEdition.id}`, payload, { headers });
+        await axios.put(`${API_BASE_URL}/antennes/${modEdition.id}`, payload, authCfg(token));
       } else {
-        await axios.post(`${API_BASE_URL}/antennes`, payload, { headers });
+        await axios.post(`${API_BASE_URL}/antennes`, payload, authCfg(token));
       }
       fermerModal();
       fetchAntennes();
@@ -180,9 +182,7 @@ export default function EquipmentsPage() {
   // ── Supprimer ────────────────────────────────────────────────
   const supprimer = async (ant) => {
     try {
-      await axios.delete(`${API_BASE_URL}/antennes/${ant.id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.delete(`${API_BASE_URL}/antennes/${ant.id}`, authCfg(token));
       setConfirmSuppr(null);
       fetchAntennes();
     } catch (err) {
@@ -220,11 +220,21 @@ export default function EquipmentsPage() {
               <h1><RadioTower size={22} color="var(--accent)" /> Gestion des Antennes</h1>
               <p>Inventaire complet • {nb.total} sites supervisés</p>
             </div>
-            {peutEditer && (
-              <button className="btn btn-primary" onClick={ouvrirCreation}>
-                <Plus size={16} /> Ajouter une antenne
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleExportCsv}
+                disabled={exporting}
+              >
+                <Download size={16} /> {exporting ? 'Export…' : 'Exporter CSV'}
               </button>
-            )}
+              {peutEditer && (
+                <button className="btn btn-primary" onClick={ouvrirCreation}>
+                  <Plus size={16} /> Ajouter une antenne
+                </button>
+              )}
+            </div>
           </div>
 
           {/* ── KPIs ── */}
@@ -269,31 +279,6 @@ export default function EquipmentsPage() {
                 <option value="">Tous les statuts</option>
                 {statuts.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
               </select>
-              {/* ── Sort buttons ── */}
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                {[
-                  { k: 'statut', l: 'Statut (auto)' },
-                  { k: 'nom',    l: 'Nom' },
-                  { k: 'zone',   l: 'Zone' },
-                  { k: 'score',  l: 'Score IA' },
-                  { k: 'temp',   l: 'Temp.' },
-                ].map(({ k, l }) => (
-                  <button
-                    key={k}
-                    onClick={() => toggleSort(k)}
-                    style={{
-                      padding: '5px 10px', borderRadius: 6,
-                      border: sortKey === k ? '1.5px solid var(--accent)' : '1px solid var(--border)',
-                      background: sortKey === k ? 'var(--accent-soft)' : 'var(--surface)',
-                      color: sortKey === k ? 'var(--accent)' : 'var(--text-muted)',
-                      fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {l}{sortIcon(k)}
-                  </button>
-                ))}
-              </div>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
                 {antFiltrees.length} / {antennes.length} sites
               </span>
@@ -307,16 +292,15 @@ export default function EquipmentsPage() {
               <table className="noc-table">
                 <thead>
                   <tr>
-                    <th>Site</th>
-                    <th>Zone</th>
-                    <th>Type</th>
-                    <th>CPU (%)</th>
-                    <th>Temp (°C)</th>
-                    <th>Dispo (%)</th>
-                    <th>Latence (ms)</th>
-                    <th>Score IA</th>
-                    <th>Statut</th>
-                    <th>Coordonnées</th>
+                    {TABLE_COLUMNS.map(col => (
+                      <th
+                        key={col.key}
+                        className="sortable-th"
+                        onClick={() => toggleSort(col.key)}
+                      >
+                        {col.label}{sortIcon(col.key)}
+                      </th>
+                    ))}
                     {peutEditer && <th>Actions</th>}
                   </tr>
                 </thead>
@@ -331,12 +315,11 @@ export default function EquipmentsPage() {
                         <td style={{ color: ant.cpu > 85 ? 'var(--danger)' : 'inherit', fontWeight: ant.cpu > 85 ? 700 : 400 }}>
                           {Number(ant.cpu || 0).toFixed(1)}
                         </td>
-                        {/* Température : rouge > 45°C (critique DHT11), orange > 35°C (alerte), vert sinon */}
                         <td style={{
                           color: ant.temperature > 45 ? 'var(--danger)'
                                : ant.temperature > 35 ? 'var(--warning)'
                                : 'inherit',
-                          fontWeight: ant.temperature > 35 ? 700 : 400
+                          fontWeight: ant.temperature > 35 ? 700 : 400,
                         }}>
                           {Number(ant.temperature || 0).toFixed(1)}
                         </td>
@@ -418,9 +401,6 @@ export default function EquipmentsPage() {
                   <RadioTower size={16} color="var(--accent)" style={{ marginRight: 8 }} />
                   {modEdition ? `Modifier — ${modEdition.nom}` : 'Ajouter une antenne'}
                 </h3>
-                <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  {modEdition ? 'Modifiez les informations de cette antenne.' : 'Remplissez les informations du nouveau site.'}
-                </p>
               </div>
               <button onClick={fermerModal} style={{ background: 'var(--surface-2)', border: 'none', borderRadius: 8, padding: 6, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
                 <X size={16} />

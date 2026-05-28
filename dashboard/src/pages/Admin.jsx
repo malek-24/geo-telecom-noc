@@ -1,14 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../auth/AuthContext';
 import Sidebar from '../components/Sidebar';
-import { API_BASE_URL } from '../services/apiConfig';
-import { DATA_REFRESH_MS } from '../dataRefreshMs';
+import { API_BASE_URL, authCfg } from '../services/apiConfig';
+import { REFRESH_MS } from '../dataRefreshMs';
+import { mergeById } from '../utils/silentRefresh';
+import { formatDateTimeTN } from '../utils/dateTime';
+import { downloadCsv } from '../services/exportCsv';
 import {
   Users, Settings, Activity, AlertTriangle, Edit, Trash2,
   Shield, ShieldAlert, Plus, Save, Activity as ActivityIcon,
   UserX, UserCheck, Lock, MessageSquare, Check, X,
-  Radio, Thermometer, Cpu, Signal, Clock, Wifi
+  Radio, Thermometer, Cpu, Signal, Clock, Wifi, ScrollText
 } from 'lucide-react';
 import '../styles/AdminStyles.css';
 
@@ -20,6 +23,16 @@ export default function AdministrationPage() {
   const [pendingComments, setPendingComments] = useState([]);
   const [settings, setSettings] = useState({});
   const [stats, setStats] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFiltreUser, setAuditFiltreUser] = useState('');
+  const [auditFiltreAction, setAuditFiltreAction] = useState('');
+  const [auditFiltreType, setAuditFiltreType] = useState('');
+  const [auditFiltreRessource, setAuditFiltreRessource] = useState('');
+  const [auditFiltreDateDe, setAuditFiltreDateDe] = useState('');
+  const [auditFiltreDateA, setAuditFiltreDateA] = useState('');
+  const auditInitialLoad = useRef(true);
+  const antennesInitialLoad = useRef(true);
 
   // ── État pour l'onglet Antennes ──────────────────────────────
   const [antennes, setAntennes] = useState([]);
@@ -50,9 +63,11 @@ export default function AdministrationPage() {
     if (role === 'administrateur') {
       fetchData();
       const interval = setInterval(() => {
+        if (activeTab === 'users') fetchUsers();
         if (activeTab === 'comments') fetchComments();
-        if (activeTab === 'antennes') fetchAntennes();
-      }, DATA_REFRESH_MS);
+        if (activeTab === 'antennes') fetchAntennes(true);
+        if (activeTab === 'audit') fetchAuditLogs(true);
+      }, REFRESH_MS.admin);
       return () => clearInterval(interval);
     }
   }, [role, activeTab]);
@@ -62,42 +77,86 @@ export default function AdministrationPage() {
     fetchComments();
     fetchSettings();
     try {
-      const res = await axios.get(`${API_BASE_URL}/stats`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(`${API_BASE_URL}/stats`, authCfg(token));
       setStats(res.data);
     } catch (e) { console.error(e); }
   };
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/admin/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(`${API_BASE_URL}/admin/users`, authCfg(token));
       setUsers(res.data);
     } catch (e) { console.error(e); }
   };
 
   // ── Chargement des antennes ──────────────────────────────────
-  const fetchAntennes = useCallback(async () => {
-    setAntennesLoading(true);
+  const fetchAntennes = useCallback(async (silent = false) => {
+    if (!silent && antennesInitialLoad.current) setAntennesLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/antennes`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAntennes(res.data);
+      const res = await axios.get(`${API_BASE_URL}/antennes`, authCfg(token));
+      setAntennes(prev => mergeById(prev, res.data));
     } catch (e) {
       console.error(e);
     } finally {
-      setAntennesLoading(false);
+      if (!silent && antennesInitialLoad.current) {
+        setAntennesLoading(false);
+        antennesInitialLoad.current = false;
+      }
     }
   }, [token]);
 
   useEffect(() => {
     if (activeTab === 'antennes' && role === 'administrateur') {
-      fetchAntennes();
+      fetchAntennes(false);
     }
   }, [activeTab, fetchAntennes, role]);
+
+  const fetchAuditLogs = useCallback(async (silent = false) => {
+    if (!silent) setAuditLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (auditFiltreUser) params.set('utilisateur', auditFiltreUser);
+      if (auditFiltreAction) params.set('type_action', auditFiltreAction);
+      if (auditFiltreType) params.set('type_objet', auditFiltreType);
+      if (auditFiltreRessource) params.set('ressource', auditFiltreRessource);
+      if (auditFiltreDateDe) params.set('date_de', auditFiltreDateDe);
+      if (auditFiltreDateA) params.set('date_a', auditFiltreDateA);
+      const qs = params.toString();
+      const res = await axios.get(
+        `${API_BASE_URL}/audit${qs ? `?${qs}` : ''}`,
+        authCfg(token)
+      );
+      setAuditLogs(res.data || []);
+    } catch (e) {
+      console.error(e);
+      setAuditLogs([]);
+    } finally {
+      if (!silent) setAuditLoading(false);
+      auditInitialLoad.current = false;
+    }
+  }, [token, auditFiltreUser, auditFiltreAction, auditFiltreType, auditFiltreRessource, auditFiltreDateDe, auditFiltreDateA]);
+
+  useEffect(() => {
+    if (activeTab === 'audit' && role === 'administrateur') {
+      fetchAuditLogs(false);
+    }
+  }, [activeTab, role]);
+
+  const exportAuditCsv = async () => {
+    const params = new URLSearchParams();
+    if (auditFiltreUser) params.set('utilisateur', auditFiltreUser);
+    if (auditFiltreAction) params.set('type_action', auditFiltreAction);
+    if (auditFiltreType) params.set('type_objet', auditFiltreType);
+    if (auditFiltreRessource) params.set('ressource', auditFiltreRessource);
+    if (auditFiltreDateDe) params.set('date_de', auditFiltreDateDe);
+    if (auditFiltreDateA) params.set('date_a', auditFiltreDateA);
+    const qs = params.toString();
+    try {
+      await downloadCsv(token, `/audit/export${qs ? `?${qs}` : ''}`, 'journal_audit.csv');
+    } catch (_) {
+      alert('Erreur export journal d\'audit.');
+    }
+  };
 
   // ── Ouvrir le modal de modification des métriques ────────────
   const ouvrirModalMetriques = (antenne) => {
@@ -129,7 +188,7 @@ export default function AdministrationPage() {
           latence:       parseFloat(metriquesForm.latence),
           disponibilite: parseFloat(metriquesForm.disponibilite),
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        authCfg(token)
       );
 
       // Afficher le résultat de l'IA immédiatement
@@ -141,7 +200,7 @@ export default function AdministrationPage() {
       });
 
       // Rafraîchir le tableau des antennes pour voir le nouveau statut
-      fetchAntennes();
+      fetchAntennes(true);
 
     } catch (e) {
       console.error(e);
@@ -176,18 +235,14 @@ export default function AdministrationPage() {
 
   const fetchComments = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/admin/commentaires`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(`${API_BASE_URL}/admin/commentaires`, authCfg(token));
       setPendingComments(res.data);
     } catch (e) { console.error(e); }
   };
 
   const handleValidateComment = async (id) => {
     try {
-      await axios.put(`${API_BASE_URL}/commentaires/${id}/valider`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.put(`${API_BASE_URL}/commentaires/${id}/valider`, {}, authCfg(token));
       fetchComments();
     } catch (e) { console.error(e); }
   };
@@ -195,18 +250,14 @@ export default function AdministrationPage() {
   const handleDeleteComment = async (id) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce commentaire ?")) return;
     try {
-      await axios.delete(`${API_BASE_URL}/commentaires/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.delete(`${API_BASE_URL}/commentaires/${id}`, authCfg(token));
       fetchComments();
     } catch (e) { console.error(e); }
   };
 
   const fetchSettings = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/admin/settings`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await axios.get(`${API_BASE_URL}/admin/settings`, authCfg(token));
       setSettings(res.data);
     } catch (e) { console.error(e); }
   };
@@ -214,13 +265,9 @@ export default function AdministrationPage() {
   const handleSaveUser = async () => {
     try {
       if (editingUser) {
-        await axios.put(`${API_BASE_URL}/admin/users/${editingUser.id}`, userFormData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.put(`${API_BASE_URL}/admin/users/${editingUser.id}`, userFormData, authCfg(token));
       } else {
-        await axios.post(`${API_BASE_URL}/admin/users`, userFormData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.post(`${API_BASE_URL}/admin/users`, userFormData, authCfg(token));
       }
       setIsUserModalOpen(false);
       fetchUsers();
@@ -230,9 +277,7 @@ export default function AdministrationPage() {
   const handleDeleteUser = async (id) => {
     if (window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur définitivement ?")) {
       try {
-        await axios.delete(`${API_BASE_URL}/admin/users/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.delete(`${API_BASE_URL}/admin/users/${id}`, authCfg(token));
         fetchUsers();
       } catch (e) { console.error(e); }
     }
@@ -241,9 +286,7 @@ export default function AdministrationPage() {
   const handleToggleStatus = async (user) => {
     const newStatus = user.statut === 'Actif' ? 'Désactivé' : 'Actif';
     try {
-      await axios.put(`${API_BASE_URL}/admin/users/${user.id}`, { statut: newStatus }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.put(`${API_BASE_URL}/admin/users/${user.id}`, { statut: newStatus }, authCfg(token));
       fetchUsers();
     } catch (e) { console.error(e); }
   };
@@ -297,9 +340,7 @@ export default function AdministrationPage() {
 
   const handleSaveSettings = async () => {
     try {
-      await axios.post(`${API_BASE_URL}/admin/settings`, settings, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.post(`${API_BASE_URL}/admin/settings`, settings, authCfg(token));
       alert("Configuration sauvegardée !");
     } catch (e) { console.error(e); }
   };
@@ -325,8 +366,7 @@ export default function AdministrationPage() {
       <div className="admin-main" style={{ paddingTop: '20px' }}>
 
         <div className="admin-header">
-          <h1>Centre de Contrôle Administrateur</h1>
-          <p>Gestion globale du système GEO-TÉLÉCOM, sécurité, paramètres et maintien en condition opérationnelle.</p>
+          <h1>Administration NOC</h1>
         </div>
 
         {/* ── ONGLETS ─────────────────────────────────────────── */}
@@ -354,6 +394,12 @@ export default function AdministrationPage() {
             onClick={() => setActiveTab('settings')}
           >
             <Settings size={18} /> Paramètres
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'audit' ? 'active' : ''}`}
+            onClick={() => setActiveTab('audit')}
+          >
+            <ScrollText size={18} /> Journal d&apos;audit
           </button>
         </div>
 
@@ -503,7 +549,7 @@ export default function AdministrationPage() {
             <div className="admin-panel">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3><Radio size={20} style={{ marginRight: 8 }} />Modification Manuelle des Métriques</h3>
-                <button className="admin-btn ghost" onClick={fetchAntennes} title="Rafraîchir">
+                <button type="button" className="admin-btn ghost" onClick={() => fetchAntennes(true)} title="Rafraîchir">
                   ↻ Actualiser
                 </button>
               </div>
@@ -666,6 +712,110 @@ export default function AdministrationPage() {
                           </button>
                         </div>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* ── ONGLET JOURNAL D'AUDIT ───────────────────────── */}
+        {activeTab === 'audit' && (
+          <div className="admin-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: 10 }}>
+              <h3>Journal d&apos;audit</h3>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="admin-btn" onClick={() => fetchAuditLogs(true)}>
+                  <Activity size={16} /> Actualiser
+                </button>
+                <button type="button" className="admin-btn ghost" onClick={exportAuditCsv}>
+                  Export CSV
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+              <input
+                className="admin-input"
+                placeholder="Utilisateur"
+                value={auditFiltreUser}
+                onChange={e => setAuditFiltreUser(e.target.value)}
+                style={{ maxWidth: 140 }}
+              />
+              <input
+                className="admin-input"
+                placeholder="Action"
+                value={auditFiltreAction}
+                onChange={e => setAuditFiltreAction(e.target.value)}
+                style={{ maxWidth: 140 }}
+              />
+              <input
+                className="admin-input"
+                placeholder="Ressource / cible"
+                value={auditFiltreRessource}
+                onChange={e => setAuditFiltreRessource(e.target.value)}
+                style={{ maxWidth: 140 }}
+              />
+              <select
+                className="admin-input"
+                value={auditFiltreType}
+                onChange={e => setAuditFiltreType(e.target.value)}
+                style={{ maxWidth: 130 }}
+              >
+                <option value="">Type objet</option>
+                <option value="session">session</option>
+                <option value="utilisateur">utilisateur</option>
+                <option value="antenne">antenne</option>
+                <option value="incident">incident</option>
+                <option value="message">message</option>
+                <option value="export">export</option>
+                <option value="parametre">parametre</option>
+              </select>
+              <input
+                type="date"
+                className="admin-input"
+                value={auditFiltreDateDe}
+                onChange={e => setAuditFiltreDateDe(e.target.value)}
+              />
+              <input
+                type="date"
+                className="admin-input"
+                value={auditFiltreDateA}
+                onChange={e => setAuditFiltreDateA(e.target.value)}
+              />
+              <button type="button" className="admin-btn" onClick={() => fetchAuditLogs(false)}>
+                Filtrer
+              </button>
+            </div>
+            {auditLoading ? (
+              <p style={{ color: 'var(--text-muted)' }}>Chargement…</p>
+            ) : auditLogs.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)' }}>Aucune entrée pour ces critères.</p>
+            ) : (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Utilisateur</th>
+                    <th>Action</th>
+                    <th>Type</th>
+                    <th>Cible</th>
+                    <th>Avant</th>
+                    <th>Après</th>
+                    <th>IP</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.map(log => (
+                    <tr key={log.id || `${log.date}-${log.action}`}>
+                      <td>{formatDateTimeTN(log.date)}</td>
+                      <td><strong>{log.utilisateur}</strong></td>
+                      <td>{log.action}</td>
+                      <td>{log.type_objet || '—'}</td>
+                      <td>{log.cible || '—'}</td>
+                      <td style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }} title={log.valeur_avant}>{log.valeur_avant || '—'}</td>
+                      <td style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }} title={log.valeur_apres}>{log.valeur_apres || '—'}</td>
+                      <td>{log.adresse_ip || '—'}</td>
                     </tr>
                   ))}
                 </tbody>

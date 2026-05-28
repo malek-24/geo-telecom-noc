@@ -1,21 +1,4 @@
-/*
- * App.js  —  Point d'entrée de l'application React NOC v2.1
- *
- * Routes définies :
- *   /login                → page de connexion (accessible à tous)
- *   /dashboard            → tableau de bord principal (tous les rôles)
- *   /map                  → carte réseau interactive (tous les rôles)
- *   /equipments           → liste des antennes (tous les rôles)
- *   /moderation           → incidents & commentaires (admin, modérateur, technicien)
- *   /technicien/anomalies → alias → redirige vers /moderation
- *   /rapports             → rapports (admin, ingénieur, modérateur)
- *   /administration       → administration (admin seulement)
- *
- * Composants globaux injectés pour les utilisateurs connectés :
- *   - CriticalAlertBanner : popup temps réel quand antenne devient critique
- *   - ChatWidget          : mini chat interne flottant
- */
-
+/** Routes principales de l'application NOC (voir README.md à la racine). */
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage          from "./pages/Login";
@@ -26,7 +9,6 @@ import IncidentsPage      from "./pages/Incidents";
 import RapportsPage       from "./pages/Reports";
 import AdministrationPage from "./pages/Admin";
 import AntennaHistoryPage from "./pages/AntenneHistory";
-
 // ── Auth ──
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ROLE }       from "./auth/roles";
@@ -36,10 +18,7 @@ import { useAuth }    from "./auth/AuthContext";
 import CriticalAlertBanner from "./components/CriticalAlertBanner";
 import ChatWidget          from "./components/ChatWidget";
 
-/**
- * AppGlobal — wrapper qui injecte les composants globaux
- * uniquement quand l'utilisateur est connecté.
- */
+/** Alertes critiques + chat (utilisateur connecté uniquement). */
 function AppGlobal() {
   const { estConnecte } = useAuth();
   if (!estConnecte) return null;
@@ -82,7 +61,7 @@ function App() {
           element={<ProtectedRoute><AntennaHistoryPage /></ProtectedRoute>}
         />
 
-        {/* Rapports — Admin, Ingénieur, Ingénieur */}
+        {/* Rapports — Admin, Ingénieur */}
         <Route
           path="/rapports"
           element={
