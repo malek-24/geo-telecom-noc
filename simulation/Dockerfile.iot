@@ -1,0 +1,10 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir requests pyserial psycopg2-binary
+
+COPY serial_bridge.py simulate_dht11_docker.py iot_entrypoint.sh ./
+RUN sed -i 's/\r$//' iot_entrypoint.sh && chmod +x iot_entrypoint.sh
+
+CMD ["./iot_entrypoint.sh"]

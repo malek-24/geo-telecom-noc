@@ -13,9 +13,11 @@ Fonctionnement :
   4. Envoie les données à l'API Flask via POST /iot/mesure
   5. L'IA Isolation Forest analyse automatiquement les nouvelles mesures
 
-Usage :
-  python serial_bridge.py
-  python serial_bridge.py --port COM3 --api http://localhost:7000
+Usage (depuis la racine du projet PROJET-TT) :
+  python -u simulation/serial_bridge.py
+  python -u simulation/serial_bridge.py --port COM3 --api http://localhost:7000
+
+  Ou double-clic : simulation/run_serial_bridge.bat
 
 Dependances :
   pip install pyserial requests
@@ -214,15 +216,25 @@ def traiter_ligne(ligne: str) -> bool:
 #  BOUCLE PRINCIPALE
 # ----------------------------------------------------------------
 
+def normaliser_api_url(url: str) -> str:
+    """Nettoie l'URL (espaces, slash final, typo courante)."""
+    url = (url or "").strip().rstrip("/")
+    if not url.startswith(("http://", "https://")):
+        print(f"[ERREUR] URL API invalide : {url!r}")
+        print("[INFO]   Exemple : --api http://localhost:7000")
+        sys.exit(1)
+    return url
+
+
 def demarrer(port: str, api_url: str):
     """Boucle principale : lit le Serial et envoie a l'API."""
     global API_URL, _antenne_id_cache
-    API_URL = api_url
+    API_URL = normaliser_api_url(api_url)
 
     # ── Étape 1 : Récupérer l'ID de l'antenne depuis la BD ──────
     # L'ID est récupéré dynamiquement — jamais codé en dur
     print("[IoT] Récupération de l'ID de l'antenne 'ISET Mahdia' depuis la base...")
-    antenne_id = recuperer_antenne_id(api_url)
+    antenne_id = recuperer_antenne_id(API_URL)
     _antenne_id_cache = antenne_id
 
     # Detection automatique si le port n'est pas specifie
@@ -287,13 +299,16 @@ if __name__ == "__main__":
         description="Passerelle Serial Arduino → API Flask (ISET Mahdia IoT)"
     )
     parser.add_argument(
-        "--port", default=None,
-        help="Port Serial de l'Arduino (ex: COM3, /dev/ttyUSB0). "
-             "Detection automatique si non specifie."
+        "--port", default=SERIAL_PORT,
+        help=f"Port Serial de l'Arduino (defaut: {SERIAL_PORT}). "
+             "Mettre '' pour detection automatique."
     )
     parser.add_argument(
         "--api", default=API_URL,
         help=f"URL de base de l'API Flask (defaut: {API_URL})"
     )
     args = parser.parse_args()
-    demarrer(args.port, args.api)
+    port = args.port.strip() if args.port else None
+    if not port:
+        port = detecter_port_arduino()
+    demarrer(port, args.api)

@@ -73,6 +73,24 @@ services:
     networks:
       - sig_net
 
+  # ─── Passerelle IoT DHT11 (logs [DHT11] + [API] OK dans Docker) ─
+  iot-bridge:
+    build:
+      context: ./simulation
+      dockerfile: Dockerfile.iot
+    container_name: iot_bridge
+    restart: unless-stopped
+    environment:
+      API_URL:          http://api:5000
+      IOT_API_KEY:      arduino-noc-secret-2026
+      IOT_MODE:         simulate
+      IOT_INTERVAL_SEC: "3"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - sig_net
+
   # ─── Frontend React (Nginx) ──────────────────────────────────
   frontend:
     build:

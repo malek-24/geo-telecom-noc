@@ -57,6 +57,26 @@ app.register_blueprint(audit_bp)
 app.register_blueprint(export_bp)
 
 # ── Healthcheck (pour Docker) ─────────────────────────────────────
+@app.route("/", methods=["GET"])
+def index():
+    """Page d'accueil API — évite le 404 sur http://localhost:7000"""
+    return jsonify({
+        "status":  "ok",
+        "service": "GEO-TÉLÉCOM NOC API",
+        "version": "PFE 2025/2026",
+        "endpoints": {
+            "health":        "/health",
+            "login":         "POST /auth/login",
+            "dashboard":     "/dashboard/summary",
+            "antennes":      "/antennes",
+            "iot_mesure":    "POST /iot/mesure",
+            "iot_status":    "/iot/status",
+            "predict":       "GET /predict  (Bearer JWT)",
+        },
+        "frontend": "http://localhost:3000",
+    }), 200
+
+
 @app.route("/health", methods=["GET"])
 def health():
     """Vérifie que le serveur Flask est opérationnel."""

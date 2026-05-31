@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test capteur DHT11 — ISET Mahdia</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Times New Roman", Times, serif;
+      background: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,.35);
+    }
+    h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+    .sub { color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
+    .temp {
+      font-size: 4.5rem;
+      font-weight: 700;
+      line-height: 1;
+      margin: 16px 0;
+    }
+    .temp.ok { color: #22c55e; }
+    .temp.warn { color: #f59e0b; }
+    .temp.crit { color: #ef4444; }
+    .label { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+    .status {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .status.normal { background: #14532d; color: #86efac; }
+    .status.alerte { background: #78350f; color: #fcd34d; }
+    .status.critique { background: #7f1d1d; color: #fca5a5; }
+    .meta { margin-top: 24px; font-size: 0.85rem; color: #cbd5e1; text-align: left; }
+    .meta div { padding: 6px 0; border-bottom: 1px solid #334155; }
+    .meta span { float: right; color: #f1f5f9; }
+    .err { color: #fca5a5; margin-top: 12px; font-size: 0.85rem; }
+    .dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    footer { margin-top: 20px; font-size: 0.75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="label"><span class="dot"></span>Capteur DHT11 — temps réel</div>
+    <h1>ISET Mahdia</h1>
+    <p class="sub">Antenne IoT #121 · GEO-TÉLÉCOM NOC</p>
+
+    <div class="label">Température</div>
+    <div id="temp" class="temp ok">— °C</div>
+    <div id="badge" class="status normal">En attente…</div>
+
+    <div class="meta">
+      <div>Score IA <span id="score">—</span></div>
+      <div>CPU <span id="cpu">—</span></div>
+      <div>Disponibilité <span id="dispo">—</span></div>
+      <div>Dernière mesure <span id="date">—</span></div>
+    </div>
+
+    <p id="err" class="err"></p>
+    <footer>Rafraîchissement auto · 3 s</footer>
+  </div>
+
+  <script>
+    const ANTENNE_ID = 121;
+    const API_KEY = 'arduino-noc-secret-2026';
+    const API = '/api/iot/antenne/dernieres/' + ANTENNE_ID;
+
+    function couleurTemp(t) {
+      if (t >= 45) return 'crit';
+      if (t >= 35) return 'warn';
+      return 'ok';
+    }
+
+    function libelleStatut(s) {
+      if (s === 'critique') return { cls: 'critique', txt: 'Critique' };
+      if (s === 'alerte') return { cls: 'alerte', txt: 'Alerte' };
+      return { cls: 'normal', txt: 'Normal' };
+    }
+
+    async function refresh() {
+      const errEl = document.getElementById('err');
+      try {
+        const res = await fetch(API, {
+          headers: { 'X-API-Key': API_KEY }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.status);
+
+        const m = (data.mesures || [])[0];
+        if (!m) {
+          errEl.textContent = 'Aucune mesure en base. Vérifiez Arduino + serial_bridge.';
+          return;
+        }
+
+        errEl.textContent = '';
+        const t = Number(m.temperature);
+        const tempEl = document.getElementById('temp');
+        tempEl.textContent = t.toFixed(1) + ' °C';
+        tempEl.className = 'temp ' + couleurTemp(t);
+
+        const st = libelleStatut(m.statut || 'normal');
+        const badge = document.getElementById('badge');
+        badge.className = 'status ' + st.cls;
+        badge.textContent = st.txt;
+
+        document.getElementById('score').textContent = (m.risk_score != null ? m.risk_score + ' %' : '—');
+        document.getElementById('cpu').textContent = (m.cpu != null ? m.cpu + ' %' : '—');
+        document.getElementById('dispo').textContent = (m.disponibilite != null ? m.disponibilite + ' %' : '—');
+        document.getElementById('date').textContent = m.date_mesure || '—';
+      } catch (e) {
+        errEl.textContent = 'Erreur : ' + e.message;
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 3000);
+  </script>
+</body>
+</html>

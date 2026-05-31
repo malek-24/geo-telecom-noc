@@ -10,7 +10,7 @@ Routes exposées :
   POST /ia/retrain           — Réentraînement forcé (admin uniquement)
   GET  /ia/model/info        — Informations sur le modèle actuel
   POST /ia/reset             — Réinitialisation complète du modèle (admin)
-  POST /api/test-ia          — Scénarios de démonstration (jury)
+  POST /test-ia              — Scénarios de démonstration (jury) ; via Nginx : /api/test-ia
 """
 import os
 from datetime import datetime
@@ -208,7 +208,7 @@ def force_reset():
         return jsonify({"error": str(e)}), 500
 
 
-@ia_bp.route("/api/test-ia", methods=["POST"])
+@ia_bp.route("/test-ia", methods=["POST"])
 @token_required
 def force_ia_incident():
     """

@@ -286,7 +286,8 @@ def dernieres_mesures_iot(ant_id):
         cur  = conn.cursor()
         cur.execute("""
             SELECT temperature, cpu, signal, latence, disponibilite,
-                   statut, to_char(date_mesure, 'YYYY-MM-DD HH24:MI:SS') AS date_mesure
+                   statut, risk_score,
+                   to_char(date_mesure, 'YYYY-MM-DD HH24:MI:SS') AS date_mesure
             FROM mesures
             WHERE antenne_id = %s
             ORDER BY date_mesure DESC
