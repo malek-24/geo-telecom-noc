@@ -10,6 +10,3 @@ export const REFRESH_MS = {
   chat: 5000,
   criticalBanner: 15000,
 };
-
-/** @deprecated Utiliser REFRESH_MS — conservé pour imports existants */
-export const DATA_REFRESH_MS = REFRESH_MS.dashboard;

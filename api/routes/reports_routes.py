@@ -4,7 +4,7 @@ Expose les endpoints de génération de documents pour le module Rapports.
 """
 import io
 from datetime import datetime
-from flask import Blueprint, request, jsonify, g, send_file
+from flask import Blueprint, request, jsonify, send_file
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas

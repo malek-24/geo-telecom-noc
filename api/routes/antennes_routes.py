@@ -10,7 +10,6 @@ import pandas as pd
 from database.connection import connecter_base_de_donnees, rows_to_dicts
 from utils.globals import ADMIN_LOGS
 from utils.audit import enregistrer_audit
-from utils.historique import enregistrer_changement_etat, lire_statut_antenne
 from auth.decorators import token_required, role_required
 
 

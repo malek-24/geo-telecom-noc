@@ -151,8 +151,6 @@ def recevoir_mesure_iot():
     except (ValueError, TypeError) as e:
         return jsonify({"error": f"Valeur invalide : {e}"}), 400
 
-    print("[IOT] Mesure reçue :", antenne_id, temperature)
-
     # Validation plage DHT11 (0°C à 60°C — plage physique du capteur)
     if not (0.0 <= temperature <= 60.0):
         return jsonify({

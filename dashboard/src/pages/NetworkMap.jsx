@@ -108,7 +108,14 @@ const makeIcon = (status) => {
 
 const val = (v, unit = '') => (v !== undefined && v !== null ? `${Number(v).toFixed(1)}${unit}` : '—');
 
-const metricColor = (v, warn, crit) => (Number(v) >= crit ? '#dc2626' : Number(v) >= warn ? '#d97706' : '#059669');
+// Couleur d'une métrique selon sa gravité : rouge si critique, orange si alerte, vert sinon.
+// (version lisible de l'ancien ternaire imbriqué : mêmes seuils, mêmes couleurs)
+const metricColor = (valeur, seuilAlerte, seuilCritique) => {
+  const v = Number(valeur);
+  if (v >= seuilCritique) return '#dc2626'; // rouge
+  if (v >= seuilAlerte)   return '#d97706'; // orange
+  return '#059669';                         // vert
+};
 
 
 

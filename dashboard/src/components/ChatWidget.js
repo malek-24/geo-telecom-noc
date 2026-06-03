@@ -2,7 +2,7 @@
  * ChatWidget.js — Messagerie NOC (canal public + privé)
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageSquare, Send, X, ChevronDown, Lock, Users, ArrowLeft } from 'lucide-react';
+import { MessageSquare, Send, X, Lock, Users, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL, authCfg } from '../services/apiConfig';
 import { useAuth } from '../auth/AuthContext';

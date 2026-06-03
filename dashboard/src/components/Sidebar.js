@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { navForRole } from "../auth/roles";
 import {
-  LayoutDashboard, Map, Radio, BrainCircuit,
+  LayoutDashboard, Map, Radio,
   ShieldCheck, FileText, Settings, LogOut
 } from "lucide-react";
 

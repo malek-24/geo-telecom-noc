@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, g
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from database.connection import connecter_base_de_donnees, rows_to_dicts
+from database.connection import connecter_base_de_donnees
 from utils.globals import JWT_SECRET, JWT_EXPIRATION_HOURS, ADMIN_LOGS
 from utils.audit import enregistrer_audit
 from auth.decorators import token_required

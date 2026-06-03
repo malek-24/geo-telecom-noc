@@ -207,9 +207,7 @@ export default function Dashboard() {
                       <span>{inc.antenne} — {inc.zone}</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Clock size={11} />
-                        {(() => {
-                          return formatTimeTN(inc.date_creation);
-                        })()}
+                        {formatTimeTN(inc.date_creation)}
                       </span>
                     </div>
                   </div>

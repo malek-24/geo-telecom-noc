@@ -227,11 +227,14 @@ export default function IncidentsPage() {
     { key: 'critical', label: 'Critiques', count: stats.critiques },
   ];
 
-  const filtered = incidents.filter(inc =>
-    filter === 'tous'     ? true :
-    filter === 'critical' ? inc.criticite === 'critical' :
-    inc.statut === filter
-  );
+  // Garde uniquement les incidents qui correspondent au filtre actif.
+  // (version lisible de l'ancien ternaire imbriqué : même résultat exact)
+  const correspondAuFiltre = (inc) => {
+    if (filter === 'tous') return true;
+    if (filter === 'critical') return inc.criticite === 'critical';
+    return inc.statut === filter;
+  };
+  const filtered = incidents.filter(correspondAuFiltre);
 
   if (loading) return (
     <div style={{ display: 'flex' }}>
